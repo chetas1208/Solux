@@ -2,24 +2,15 @@
   "name": "solux",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": "22.x",
-    "pnpm": ">=9"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@swc/core",
-      "esbuild",
-      "oxc-parser",
-      "sharp",
-      "unrs-resolver",
-      "vue-demi"
-    ]
+    "pnpm": "9.15.0"
   },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
+    "start": "pnpm --filter @solux/api start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

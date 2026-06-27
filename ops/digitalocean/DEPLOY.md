@@ -96,6 +96,13 @@ Deploy:
 doctl apps create --spec .do/app.yaml
 ```
 
+### Option A2: GitHub Actions (applies `.do/app.yaml` on every push)
+
+1. Create a [DigitalOcean personal access token](https://docs.digitalocean.com/reference/api/create-personal-access-token/) with read/write scope
+2. Add it to GitHub repo secrets as `DIGITALOCEAN_ACCESS_TOKEN`
+3. Push to `main` — `.github/workflows/digitalocean-deploy.yml` deploys via Docker using `.do/app.yaml`
+4. In the DO control panel, **disable** “Autodeploy” on the old buildpack app (or delete it) to avoid duplicate deploys
+
 ### Option B: Manual via UI
 
 1. Go to https://cloud.digitalocean.com/apps → New App

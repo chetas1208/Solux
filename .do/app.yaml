@@ -3,6 +3,10 @@ region: nyc
 
 services:
   - name: api
+    github:
+      repo: chetas1208/Solux
+      branch: main
+      deploy_on_push: false
     dockerfile_path: ops/docker/Dockerfile.api
     source_dir: /
     http_port: 3001
@@ -44,6 +48,10 @@ services:
       http_path: /health
 
   - name: web
+    github:
+      repo: chetas1208/Solux
+      branch: main
+      deploy_on_push: false
     dockerfile_path: ops/docker/Dockerfile.web
     source_dir: /
     http_port: 3000

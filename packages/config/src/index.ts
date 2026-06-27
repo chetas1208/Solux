@@ -11,7 +11,7 @@ function requireEnv(key: string): string {
 }
 
 export const serverConfig = {
-  port: parseInt(env('API_PORT') ?? '3001', 10),
+  port: parseInt(env('API_PORT') ?? env('PORT') ?? '3001', 10),
   host: env('API_HOST') ?? '0.0.0.0',
   corsOrigin: env('CORS_ORIGIN') ?? 'http://localhost:3000',
   nodeEnv: (env('NODE_ENV') ?? 'development') as 'development' | 'production' | 'test',

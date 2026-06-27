@@ -2,6 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# pnpm 9 (Docker / buildpack when engines pin 9.x)
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@swc/core'
@@ -10,3 +11,15 @@ onlyBuiltDependencies:
   - sharp
   - unrs-resolver
   - vue-demi
+
+# pnpm 11+ (DO buildpack may install latest if engines allow >=9)
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  esbuild: true
+  oxc-parser: true
+  sharp: true
+  unrs-resolver: true
+  vue-demi: true
+
+shamefullyHoist: true
