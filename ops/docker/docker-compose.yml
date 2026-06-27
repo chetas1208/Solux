@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: ops/docker/Dockerfile.api
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB=${MONGODB_DB:-solux}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NREL_API_KEY=${NREL_API_KEY}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_GROUP_ID=${MINIMAX_GROUP_ID}
+      - CORS_ORIGIN=http://localhost:3000
+      - DIGITALOCEAN_SPACES_ENDPOINT=${DIGITALOCEAN_SPACES_ENDPOINT}
+      - DIGITALOCEAN_SPACES_BUCKET=${DIGITALOCEAN_SPACES_BUCKET:-solux-reports}
+      - DIGITALOCEAN_SPACES_KEY=${DIGITALOCEAN_SPACES_KEY}
+      - DIGITALOCEAN_SPACES_SECRET=${DIGITALOCEAN_SPACES_SECRET}
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: ops/docker/Dockerfile.web
+    ports:
+      - '3000:3000'
+    environment:
+      - NUXT_PUBLIC_API_BASE_URL=http://localhost:3001
+      - NUXT_PUBLIC_MAPTILER_KEY=${NUXT_PUBLIC_MAPTILER_KEY}
+    depends_on:
+      - api
+    restart: unless-stopped

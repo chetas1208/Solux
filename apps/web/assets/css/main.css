@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-primary: #0f172a;
+    --color-bg-secondary: #1e293b;
+    --color-bg-tertiary: #334155;
+    --color-text-primary: #f1f5f9;
+    --color-text-secondary: #94a3b8;
+    --color-solar: #f59e0b;
+    --color-go: #22c55e;
+    --color-investigate: #f59e0b;
+    --color-kill: #ef4444;
+    --color-water: #3b82f6;
+    --color-grid: #8b5cf6;
+  }
+
+  html, body {
+    @apply bg-slate-900 text-slate-100 font-mono;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  * {
+    @apply border-slate-700;
+  }
+}
+
+@layer components {
+  .decision-go {
+    @apply bg-green-500/10 border border-green-500/30 text-green-400;
+  }
+  .decision-investigate {
+    @apply bg-amber-500/10 border border-amber-500/30 text-amber-400;
+  }
+  .decision-kill {
+    @apply bg-red-500/10 border border-red-500/30 text-red-400;
+  }
+
+  .score-bar {
+    @apply h-1.5 rounded-full bg-slate-700;
+  }
+  .score-bar-fill {
+    @apply h-full rounded-full transition-all duration-300;
+  }
+
+  .panel {
+    @apply bg-slate-800/80 border border-slate-700 rounded-lg;
+  }
+
+  .panel-header {
+    @apply px-4 py-3 border-b border-slate-700 text-xs font-semibold uppercase tracking-widest text-slate-400;
+  }
+
+  .data-missing {
+    @apply bg-slate-700/50 border border-dashed border-slate-600 text-slate-500 text-xs rounded px-2 py-1;
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@solux/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@solux/shared": "workspace:*",
+    "nuxt": "^3.13.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0",
+    "maplibre-gl": "^4.7.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@nuxt/ui": "^2.18.0",
+    "@nuxtjs/tailwindcss": "^6.12.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

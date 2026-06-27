@@ -1,0 +1,14 @@
+node_modules/
+.turbo/
+dist/
+.output/
+.nuxt/
+.nitro/
+coverage/
+*.log
+.env
+.env.local
+.env.*.local
+data/generated/
+ops/model-cache/*.bin
+ops/model-cache/*.gguf
