@@ -28,6 +28,10 @@ doctl spaces create solux-reports --region nyc3
 
 ## 3. App Platform deployment
 
+**Important:** Solux is a pnpm monorepo. App Platform must use the Dockerfiles — the Node.js buildpack runs `npm install` at the repo root and will fail (no workspace deps, no lockfile).
+
+If your build log shows `heroku/nodejs` or `Installing node modules (package.json)`, the app spec still points at the buildpack. Update it (see **Troubleshooting** below).
+
 ### Option A: App Spec (recommended)
 
 Create `.do/app.yaml`:
@@ -117,6 +121,28 @@ curl https://<api-url>.ondigitalocean.app/health
 curl https://<api-url>.ondigitalocean.app/v1/data-sources
 # Shows which providers are configured
 ```
+
+## Troubleshooting
+
+### Build uses Node.js buildpack instead of Docker
+
+Symptoms in the build log:
+
+```
+Detected the following buildpacks ... heroku/nodejs
+Installing node modules (package.json)
+```
+
+The `.do/app.yaml` file in the repo is **not** applied automatically. You must push the spec to App Platform:
+
+1. **Control panel:** Apps → your app → **Settings** → **App Spec** → **Edit** → paste contents of `.do/app.yaml` (replace `PLACEHOLDER` secrets) → **Save**
+2. **CLI:** `doctl apps update <app-id> --spec .do/app.yaml`
+
+Each service must include `dockerfile_path` (e.g. `ops/docker/Dockerfile.api`). Remove any `environment_slug: node-js` or custom `build_command` on those services.
+
+### Docker build fails on `pnpm install`
+
+Ensure `pnpm-lock.yaml` is committed and Dockerfiles copy it. Native deps (esbuild, etc.) are allowlisted in `pnpm-workspace.yaml`.
 
 ## Cost estimate
 

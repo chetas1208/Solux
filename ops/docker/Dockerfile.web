@@ -1,20 +1,25 @@
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 FROM base AS deps
 WORKDIR /app
-COPY pnpm-workspace.yaml package.json turbo.json ./
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/config/package.json ./packages/config/
+COPY packages/geo-utils/package.json ./packages/geo-utils/
 COPY apps/web/package.json ./apps/web/
-RUN pnpm install --no-frozen-lockfile
+COPY apps/api/package.json ./apps/api/
+COPY apps/worker/package.json ./apps/worker/
+RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps/web ./apps/web
-COPY . .
+COPY --from=deps /app/apps ./apps
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
+COPY packages ./packages
+COPY apps/web ./apps/web
 RUN pnpm --filter @solux/web build
 
 FROM node:22-alpine AS runner
