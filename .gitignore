@@ -9,6 +9,7 @@ coverage/
 .env
 .env.local
 .env.*.local
+.do/app.local.yaml
 data/generated/
 ops/model-cache/*.bin
 ops/model-cache/*.gguf

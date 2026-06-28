@@ -1,12 +1,12 @@
 name: solux
-region: nyc
+region: sfo
 
 services:
   - name: api
     github:
       repo: chetas1208/Solux
       branch: main
-      deploy_on_push: false
+      deploy_on_push: true
     dockerfile_path: ops/docker/Dockerfile.api
     source_dir: /
     http_port: 3001
@@ -17,33 +17,33 @@ services:
         value: production
       - key: MONGODB_URI
         type: SECRET
-        value: ${MONGODB_URI}
+        value: PLACEHOLDER
       - key: MONGODB_DB
         value: solux
       - key: GEMINI_API_KEY
         type: SECRET
-        value: ${GEMINI_API_KEY}
+        value: PLACEHOLDER
       - key: NREL_API_KEY
         type: SECRET
-        value: ${NREL_API_KEY}
+        value: PLACEHOLDER
       - key: MINIMAX_API_KEY
         type: SECRET
-        value: ${MINIMAX_API_KEY}
+        value: PLACEHOLDER
       - key: MINIMAX_GROUP_ID
         type: SECRET
-        value: ${MINIMAX_GROUP_ID}
+        value: PLACEHOLDER
       - key: CORS_ORIGIN
         value: ${web.PUBLIC_URL}
       - key: DIGITALOCEAN_SPACES_ENDPOINT
-        value: ${DIGITALOCEAN_SPACES_ENDPOINT}
+        value: PLACEHOLDER
       - key: DIGITALOCEAN_SPACES_BUCKET
-        value: solux-reports
+        value: solux
       - key: DIGITALOCEAN_SPACES_KEY
         type: SECRET
-        value: ${DIGITALOCEAN_SPACES_KEY}
+        value: PLACEHOLDER
       - key: DIGITALOCEAN_SPACES_SECRET
         type: SECRET
-        value: ${DIGITALOCEAN_SPACES_SECRET}
+        value: PLACEHOLDER
     health_check:
       http_path: /health
 
@@ -51,7 +51,7 @@ services:
     github:
       repo: chetas1208/Solux
       branch: main
-      deploy_on_push: false
+      deploy_on_push: true
     dockerfile_path: ops/docker/Dockerfile.web
     source_dir: /
     http_port: 3000
@@ -61,4 +61,4 @@ services:
       - key: NUXT_PUBLIC_API_BASE_URL
         value: ${api.PUBLIC_URL}
       - key: NUXT_PUBLIC_MAPTILER_KEY
-        value: ${NUXT_PUBLIC_MAPTILER_KEY}
+        value: PLACEHOLDER
