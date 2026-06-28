@@ -69,6 +69,20 @@ export interface HealthResponse {
   environment: string
 }
 
+export interface ProjectListSummary {
+  candidateCount: number
+  avgConfidence: number
+  avgScore: number
+  topDecision: string
+  datasetVersion: string
+  hasResults: boolean
+  updatedAt?: string
+}
+
+export interface ProjectListItem extends ProjectBrief {
+  summary?: ProjectListSummary
+}
+
 export interface ProjectDetail {
   brief: ProjectBrief
   spec: ProjectSpec | null

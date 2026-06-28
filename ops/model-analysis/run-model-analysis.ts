@@ -29,19 +29,18 @@ interface CandidateRow {
   final_score?: number
   confidence?: number
   site_type?: string
-  evidence_ids?: string
 }
 
 function hashFeatures(row: CandidateRow): string {
   return createHash('sha256')
-    .update(JSON.stringify({ id: row.candidate_id, score: row.final_score }))
+    .update(JSON.stringify({ id: row.candidate_id, score: Number(row.final_score ?? 0) }))
     .digest('hex')
     .slice(0, 16)
 }
 
 function clusterFromScores(row: CandidateRow): string {
-  const score = row.final_score ?? 0
-  const conf = row.confidence ?? 0
+  const score = Number(row.final_score ?? 0)
+  const conf = Number(row.confidence ?? 0) / 100
   if (conf < 0.4) return 'data-insufficient'
   if (score >= 75) return 'high-output-low-risk'
   if (score >= 55) return 'high-output-grid-uncertain'
@@ -68,13 +67,13 @@ async function loadCandidates(): Promise<CandidateRow[]> {
 
   const sql = `
     SELECT
-      c.candidate_id,
+      c.h3Index AS candidate_id,
       s.final_score,
-      s.confidence,
-      c.site_type,
-      COALESCE(CAST(c.evidence_ids AS VARCHAR), '[]') AS evidence_ids
+      s.confidence_score AS confidence,
+      c.site_surface_type AS site_type
     FROM read_parquet('${candPath}') c
-    LEFT JOIN read_parquet('${scorePath}') s ON c.candidate_id = s.candidate_id
+    LEFT JOIN read_parquet('${scorePath}') s ON c.h3Index = s.h3Index
+    ORDER BY s.final_score DESC NULLS LAST
     LIMIT 50000
   `
   return queryParquet<CandidateRow>(sql)
@@ -85,57 +84,61 @@ async function callModelRerank(
   caps: ModelEndpointCapabilities,
 ): Promise<ModelSiteAssessment[] | null> {
   if (!caps.reachable) return null
-  const endpoint = caps.endpointUrl.replace(/\/$/, '')
-  const hasAnalyze = caps.supportedRoutes.some((r) => r.includes('/analyze'))
-  const hasPredict = caps.supportedRoutes.some((r) => r.includes('/predict'))
-  const path = hasAnalyze ? '/analyze' : hasPredict ? '/predict' : null
-  if (!path) return null
+  const endpoint = caps.endpointUrl.replace(/\/$/, '').replace(/\/docs$/, '')
 
-  const payload = {
-    task: 'rerank_for_developer_priority',
-    candidates: batch.map((r) => ({
-      candidateId: r.candidate_id,
-      deterministicScore: r.final_score ?? 0,
-      confidence: r.confidence ?? 0,
-      siteType: r.site_type,
-    })),
-  }
+  const hasReason = caps.supportedRoutes.some((r) => r.includes('/v1/reason/auto'))
+  if (!hasReason) return null
+
+  const question = [
+    'Rank these solar candidate sites for developer priority.',
+    'Return JSON: {"results":[{"candidateId":"...","modelScore":0-100,"modelConfidence":0-1,"reasoningSummary":"..."}]}',
+    JSON.stringify(
+      batch.map((r) => ({
+        candidateId: r.candidate_id,
+        deterministicScore: Number(r.final_score ?? 0),
+        confidence: Number(r.confidence ?? 0),
+        siteType: r.site_type,
+      })),
+    ),
+  ].join('\n')
 
   try {
     const auth = envPath('SOLUX_MODEL_ENDPOINT_AUTH', '')
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const headers: Record<string, string> = {}
     if (auth) headers['Authorization'] = `Bearer ${auth}`
-    const res = await fetch(`${endpoint}${path}`, {
+
+    const fd = new FormData()
+    fd.append('question', question)
+    fd.append('medical', 'false')
+
+    const res = await fetch(`${endpoint}/v1/reason/auto`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: fd,
       signal: AbortSignal.timeout(Number(envPath('SOLUX_MODEL_TIMEOUT_MS', '120000'))),
     })
     if (!res.ok) return null
-    const json = (await res.json()) as { results?: Array<Record<string, unknown>> }
-    if (!json.results?.length) return null
-    return json.results.map((r, i) => ({
-      candidateId: String(r.candidateId ?? batch[i]?.candidate_id ?? ''),
-      inputFeatureHash: hashFeatures(batch[i] ?? { candidate_id: '' }),
-      modelName: String(r.modelName ?? 'hosted-endpoint'),
-      modelEndpoint: endpoint,
-      modelVersion: r.modelVersion ? String(r.modelVersion) : undefined,
-      modelTask: 'rerank_for_developer_priority',
-      modelScore: Number(r.modelScore ?? r.score ?? batch[i]?.final_score ?? 0),
-      modelConfidence: Number(r.modelConfidence ?? r.confidence ?? 0.5),
-      reasoningSummary: String(r.reasoningSummary ?? r.summary ?? ''),
-      unsupportedClaims: Array.isArray(r.unsupportedClaims)
-        ? r.unsupportedClaims.map(String)
-        : [],
-      evidenceIds: (() => {
-        try {
-          return row.evidence_ids ? (JSON.parse(row.evidence_ids) as string[]) : []
-        } catch {
-          return []
-        }
-      })(),
-      createdAt: new Date().toISOString(),
-    })) as ModelSiteAssessment[]
+    const json = (await res.json().catch(() => null)) as {
+      results?: Array<Record<string, unknown>>
+      answer?: string
+      job_id?: string
+    } | null
+    if (json?.results?.length) {
+      return json.results.map((r, i) => ({
+        candidateId: String(r.candidateId ?? batch[i]?.candidate_id ?? ''),
+        inputFeatureHash: hashFeatures(batch[i] ?? { candidate_id: '' }),
+        modelName: 'hpc-model-backend/reason-auto',
+        modelEndpoint: endpoint,
+        modelTask: 'rerank_for_developer_priority',
+        modelScore: Number(r.modelScore ?? r.score ?? batch[i]?.final_score ?? 0),
+        modelConfidence: Number(r.modelConfidence ?? r.confidence ?? 0.5),
+        reasoningSummary: String(r.reasoningSummary ?? r.summary ?? ''),
+        unsupportedClaims: [],
+        evidenceIds: [],
+        createdAt: new Date().toISOString(),
+      })) as ModelSiteAssessment[]
+    }
+    return null
   } catch {
     return null
   }
@@ -175,8 +178,8 @@ export async function runModelAnalysis() {
           modelName: modelUsed ? 'hosted-endpoint' : 'deterministic-baseline',
           modelEndpoint: capabilities.endpointUrl || 'none',
           modelTask: 'risk_cluster_label',
-          modelScore: row.final_score ?? 0,
-          modelConfidence: row.confidence ?? 0,
+          modelScore: Number(row.final_score ?? 0),
+          modelConfidence: Number(row.confidence ?? 0) / 100,
           reasoningSummary: `Deterministic cluster: ${clusterFromScores(row)}`,
           unsupportedClaims: [],
           evidenceIds: [],

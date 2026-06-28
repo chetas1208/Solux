@@ -105,14 +105,21 @@ function decision(score: number): 'GO' | 'INVESTIGATE' | 'KILL' {
 async function scoreCandidate(row: CandidateRow, opts: {
   pvgisEnabled: boolean
   dataSources: string[]
+  ghiLookup?: Map<string, number>
 }): Promise<ScoreRow> {
   const missing: string[] = []
   const usedSources: string[] = []
 
-  // Solar score
+  // Solar score — prefer pre-sampled Global Solar Atlas GHI raster
   let solar = 0
   let ghi = 0, dni = 0, temp = 20
-  if (opts.pvgisEnabled) {
+  const rasterGhi = opts.ghiLookup?.get(row.h3Index)
+  if (rasterGhi != null && rasterGhi > 0) {
+    ghi = rasterGhi
+    dni = ghi * 0.7
+    solar = solarScore(ghi)
+    usedSources.push('global_solar_atlas')
+  } else if (opts.pvgisEnabled) {
     const pvgis = await fetchPvgis(row.centroid_lat, row.centroid_lon)
     if (pvgis.ok) {
       ghi = pvgis.ghi; dni = pvgis.dni; temp = pvgis.temp
@@ -120,11 +127,11 @@ async function scoreCandidate(row: CandidateRow, opts: {
       usedSources.push('pvgis')
     } else {
       missing.push('pvgis')
-      solar = row.country === 'INDIA' ? 55 : 50  // fallback prior for sunny regions
+      solar = row.country === 'INDIA' ? 55 : 50
     }
   } else {
     solar = row.country === 'INDIA' ? 55 : 50
-    missing.push('pvgis_disabled')
+    if (!opts.ghiLookup) missing.push('solar_resource')
   }
 
   // Grid score — placeholder until local grid data is loaded
@@ -221,23 +228,44 @@ if (process.argv[1] && process.argv[1].endsWith('finalScore.ts')) {
     const rows: CandidateRow[] = JSON.parse(readFileSync(ndjsonPath, 'utf8'))
     console.log(`[INFO] Scoring ${rows.length} candidates …`)
 
-    const pvgisEnabled = (argMap['pvgis-url'] ?? PVGIS_BASE_URL).length > 0
+    const pvgisUrl = argMap['pvgis-url'] ?? PVGIS_BASE_URL
+    const pvgisEnabled = pvgisUrl.length > 0 && pvgisUrl !== 'disabled'
     const dataSources: string[] = []
     if (existsSync(argMap['grid-dir'] ?? '')) {
       dataSources.push('osm_power', 'hifld')
     }
 
+    const ghiLookup = new Map<string, number>()
+    const ghiLookupPath = argMap['ghi-lookup']
+    if (ghiLookupPath && existsSync(ghiLookupPath)) {
+      await new Promise<void>((res, rej) => {
+        db.all(
+          `SELECT h3Index, ghi_kwh_m2_day FROM read_parquet('${ghiLookupPath}') WHERE ghi_kwh_m2_day IS NOT NULL`,
+          (err: Error | null, result: { h3Index: string; ghi_kwh_m2_day: number }[]) => {
+            if (err) return rej(err)
+            for (const row of result ?? []) {
+              ghiLookup.set(row.h3Index, row.ghi_kwh_m2_day)
+            }
+            console.log(`[INFO] Loaded ${ghiLookup.size} GHI samples from raster lookup`)
+            res()
+          },
+        )
+      })
+    }
+
     const scored: ScoreRow[] = []
-    const BATCH = 50
+    const useRaster = ghiLookup.size > 0
+    const BATCH = useRaster ? 5000 : 50
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH)
-      const results = await Promise.all(batch.map(r => scoreCandidate(r, { pvgisEnabled, dataSources })))
+      const results = await Promise.all(
+        batch.map(r => scoreCandidate(r, { pvgisEnabled: useRaster ? false : pvgisEnabled, dataSources, ghiLookup })),
+      )
       scored.push(...results)
-      if (i % 500 === 0) {
-        console.log(`[INFO]   ${i}/${rows.length} scored`)
+      if (i % 50000 === 0 || i + BATCH >= rows.length) {
+        console.log(`[INFO]   ${Math.min(i + BATCH, rows.length)}/${rows.length} scored`)
       }
-      // Rate limit PVGIS: 1 req/sec per IP, batching 50 = ~50/s — stay polite
-      if (pvgisEnabled && i + BATCH < rows.length) {
+      if (!useRaster && pvgisEnabled && i + BATCH < rows.length) {
         await new Promise(r => setTimeout(r, 1200))
       }
     }

@@ -23,7 +23,8 @@
     "pipeline:ingest": "tsx ops/spaces/ingest-catalog-to-mongo.ts",
     "pipeline:model": "tsx ops/model-analysis/run-full-model-pipeline.ts",
     "pipeline:full": "bash ops/run_full_solux_pipeline.sh",
-    "test:e2e": "tsx ops/tests/run-solux-e2e-queries.ts"
+    "test:e2e": "tsx ops/tests/run-solux-e2e-queries.ts",
+    "showcase:ensure": "tsx ops/showcase/ensure-showcase-projects.ts"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",

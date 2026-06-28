@@ -110,8 +110,8 @@ echo ""
 
 echo "── Required files ────────────────────────"
 check_file_exists "${PROC}/candidates/solux_candidate_sites.parquet" "solux_candidate_sites.parquet"
-check_file_exists "${MANIFESTS}/dataset_manifest.json" "dataset_manifest.json" true
-check_file_exists "${MANIFESTS}/source_manifest.json" "source_manifest.json" true
+check_file_exists "${MANIFESTS}/dataset_manifest.json" "dataset_manifest.json" true || true
+check_file_exists "${MANIFESTS}/source_manifest.json" "source_manifest.json" true || true
 
 echo ""
 echo "── Boundaries ────────────────────────────"
@@ -167,14 +167,22 @@ fi
 
 # ── Generate quality report ─────────────────────────────────────────────────────
 QA_STATUS="$([ ${#ERRORS[@]} -eq 0 ] && echo 'pass' || echo 'fail')"
+ERRORS_JSON='[]'
+WARNINGS_JSON='[]'
+if ((${#ERRORS[@]})); then
+  ERRORS_JSON=$(printf '%s\n' "${ERRORS[@]}" | jq -R . | jq -s .)
+fi
+if ((${#WARNINGS[@]})); then
+  WARNINGS_JSON=$(printf '%s\n' "${WARNINGS[@]}" | jq -R . | jq -s .)
+fi
 cat > "${MANIFESTS}/quality_report.json" << JSON
 {
   "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "status": "${QA_STATUS}",
   "errorCount": ${#ERRORS[@]},
   "warningCount": ${#WARNINGS[@]},
-  "errors": $(printf '%s\n' "${ERRORS[@]:-none}" | grep -v '^none$' | jq -R . | jq -s . 2>/dev/null || echo '[]'),
-  "warnings": $(printf '%s\n' "${WARNINGS[@]:-none}" | grep -v '^none$' | jq -R . | jq -s . 2>/dev/null || echo '[]')
+  "errors": ${ERRORS_JSON},
+  "warnings": ${WARNINGS_JSON}
 }
 JSON
 

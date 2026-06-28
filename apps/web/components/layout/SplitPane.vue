@@ -14,7 +14,7 @@ defineProps<{
     >
       <slot name="left" />
     </div>
-    <div class="flex-1 min-w-0 min-h-0 flex flex-col">
+    <div class="flex-1 min-w-0 min-h-[45vh] lg:min-h-0 relative flex flex-col">
       <slot />
     </div>
     <div

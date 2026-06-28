@@ -13,6 +13,8 @@ export interface RankedSiteResult {
   centroid?: { type: string; coordinates: [number, number] }
   topFatalFlaws?: string[]
   topPositiveFactors?: string[]
+  solarScore?: number
+  gridScore?: number
   evidenceBacked?: boolean
   displayLabel?: string
   formattedAddress?: string | null
@@ -88,5 +90,14 @@ export function useProjectQuery() {
     }
   }
 
-  return { loading, error, lastResult, unsupportedRegion, unsupportedCountries, submitQuery }
+  function hydrateFromSnapshot(result: ProjectQueryResult) {
+    lastResult.value = {
+      ...result,
+      answer: result.report?.summary,
+      highlightSiteIds: result.rankedSites?.map((s) => s.candidateId) ?? [],
+      siteCount: result.rankedSites?.length ?? 0,
+    }
+  }
+
+  return { loading, error, lastResult, unsupportedRegion, unsupportedCountries, submitQuery, hydrateFromSnapshot }
 }

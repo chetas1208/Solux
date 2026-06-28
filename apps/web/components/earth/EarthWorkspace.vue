@@ -38,7 +38,7 @@ function onSelect(id: string) {
 </script>
 
 <template>
-  <div class="relative w-full h-full min-h-[320px] overflow-hidden">
+  <div class="relative w-full h-full min-h-[320px] overflow-hidden bg-zinc-950">
     <LayoutDegradedState
       v-if="degradedMessage"
       class="absolute top-3 left-3 right-3 z-20 max-w-xl pointer-events-none"

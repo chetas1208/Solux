@@ -16,7 +16,25 @@ const emit = defineEmits<{
   focus: []
 }>()
 
-// Unified display interface from either data shape
+function normalizeFlaw(raw: unknown): string | null {
+  if (raw == null) return null
+  if (Array.isArray(raw)) {
+    const joined = raw.map(String).filter((x) => x && x !== '[').join(', ')
+    return joined || null
+  }
+  const s = String(raw).trim()
+  if (!s || s === '[') return null
+  if (s.startsWith('[') && s.endsWith(']')) {
+    return s
+      .slice(1, -1)
+      .split(',')
+      .map((x) => x.trim().replace(/^['"]|['"]$/g, '').replace(/_/g, ' '))
+      .filter(Boolean)
+      .join(', ')
+  }
+  return s.replace(/_/g, ' ')
+}
+
 const decision = computed(() =>
   props.ranked?.decision ?? props.site?.scoreBreakdown?.finalDecision ?? 'INVESTIGATE',
 )
@@ -27,7 +45,7 @@ const confidence = computed(() =>
   props.ranked?.confidence ?? props.site?.scoreBreakdown?.confidence ?? null,
 )
 const displayName = computed(() =>
-  props.ranked?.displayLabel ?? props.site?.name ?? `Candidate ${props.rank ?? '—'}`,
+  props.ranked?.displayLabel ?? props.site?.name ?? `Site ${props.rank ?? '—'}`,
 )
 const displayAddress = computed(() =>
   props.ranked?.formattedAddress ?? props.ranked?.locality ?? null,
@@ -42,15 +60,19 @@ const topPositive = computed(() =>
   props.ranked?.topPositiveFactors?.[0] ?? props.site?.scoreBreakdown?.topPositiveFactors?.[0] ?? null,
 )
 const topFlaw = computed(() =>
-  props.ranked?.topFatalFlaws?.[0] ?? props.site?.scoreBreakdown?.topFatalFlaws?.[0] ?? null,
+  normalizeFlaw(props.ranked?.topFatalFlaws?.[0] ?? props.site?.scoreBreakdown?.topFatalFlaws?.[0]),
 )
-const evidenceCount = computed(() => props.site?.scoreBreakdown?.evidenceIds?.length ?? 0)
-const missingCount = computed(() => props.site?.scoreBreakdown?.missingDataWarnings?.length ?? 0)
+const scoreDetail = computed(() => {
+  const parts: string[] = []
+  if (props.ranked?.solarScore) parts.push(`Solar ${props.ranked.solarScore}`)
+  if (props.ranked?.gridScore) parts.push(`Grid ${props.ranked.gridScore}`)
+  return parts.length ? parts.join(' · ') : null
+})
 
 const coords = computed(() => {
   const c = props.ranked?.centroid?.coordinates ?? props.site?.centroid?.coordinates
   if (!c) return null
-  return `${c[1]?.toFixed(3)}°, ${c[0]?.toFixed(3)}°`
+  return `${Math.abs(c[1]!).toFixed(2)}°${c[1]! >= 0 ? 'N' : 'S'}, ${Math.abs(c[0]!).toFixed(2)}°${c[0]! >= 0 ? 'E' : 'W'}`
 })
 
 const reportLink = computed(() => {
@@ -82,7 +104,6 @@ function siteTypeLabel(t: string) {
     :class="selected ? 'border-zinc-500 ring-1 ring-zinc-600' : ''"
     @click="$emit('click')"
   >
-    <!-- Rank + decision -->
     <div class="flex items-start gap-2 mb-2">
       <span
         v-if="rank"
@@ -100,6 +121,7 @@ function siteTypeLabel(t: string) {
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-zinc-100 leading-snug">{{ displayName }}</p>
         <p v-if="displayAddress" class="text-[10px] text-zinc-500 mt-0.5 truncate">{{ displayAddress }}</p>
+        <p v-else-if="coords" class="text-[10px] text-zinc-600 mt-0.5 font-mono">{{ coords }}</p>
         <p v-else-if="adminArea" class="text-[10px] text-zinc-600 mt-0.5">{{ adminArea }}</p>
       </div>
       <span v-if="finalScore !== null" class="font-mono text-sm text-zinc-300 shrink-0 ml-1">
@@ -107,21 +129,16 @@ function siteTypeLabel(t: string) {
       </span>
     </div>
 
-    <!-- Meta row -->
     <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-zinc-600 mb-1.5">
       <span>{{ siteTypeLabel(siteType) }}</span>
       <span v-if="confidence !== null">{{ typeof confidence === 'number' ? confidence.toFixed(0) : confidence }}% conf</span>
-      <span v-if="coords" class="font-mono text-zinc-700">{{ coords }}</span>
-      <span v-if="evidenceCount > 0">{{ evidenceCount }} evidence</span>
-      <span v-if="missingCount > 0" class="text-amber-600">{{ missingCount }} gaps</span>
+      <span v-if="scoreDetail" class="text-zinc-500">{{ scoreDetail }}</span>
       <span v-if="modelRerankUsed" class="text-blue-500/70">model ranked</span>
     </div>
 
-    <!-- Evidence snippets -->
     <p v-if="topPositive" class="text-[10px] text-emerald-500/80 truncate mb-0.5">+ {{ topPositive }}</p>
-    <p v-if="topFlaw" class="text-[10px] text-decision-kill/80 truncate mb-2">⚠ {{ topFlaw }}</p>
+    <p v-if="topFlaw" class="text-[10px] text-amber-500/90 truncate mb-2">⚠ Missing: {{ topFlaw }}</p>
 
-    <!-- Actions -->
     <div class="flex items-center gap-2 pt-1.5 border-t border-surface-border/60">
       <button
         type="button"

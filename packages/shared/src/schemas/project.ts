@@ -16,6 +16,12 @@ export const ProjectBriefSchema = z.object({
   userId: z.string().optional(),
   rawPrompt: z.string().min(10).max(4000),
   createdAt: z.string().datetime(),
+  showcaseSlug: z.string().optional(),
+  name: z.string().optional(),
+  subtitle: z.string().optional(),
+  regionLabel: z.string().optional(),
+  defaultQuery: z.string().optional(),
+  country: z.enum(['India', 'USA']).optional(),
 })
 export type ProjectBrief = z.infer<typeof ProjectBriefSchema>
 

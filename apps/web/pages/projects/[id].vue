@@ -19,7 +19,7 @@ const { mapReadinessLabel, refresh: refreshMapHealth } = useMapProviderHealth()
 const { layers, toggleLayer } = useMapLayers(sources)
 const { flyToSite, flyToBounds, flyToTarget, flyToRegion } = useGlobeCamera()
 const { steps: pipelineSteps, markRunning, applyBackendSteps, markFailed } = usePipelineSteps()
-const { loading: queryLoading, error: queryError, lastResult, unsupportedRegion, unsupportedCountries, submitQuery } = useProjectQuery()
+const { loading: queryLoading, error: queryError, lastResult, unsupportedRegion, unsupportedCountries, submitQuery, hydrateFromSnapshot } = useProjectQuery()
 
 const queryText = ref('')
 const minQueryLen = 10
@@ -50,7 +50,7 @@ const globeSites = computed<SiteWithScore[]>(() => {
         id: s.candidateId,
         projectId,
         specId: '',
-        name: s.displayLabel ?? `Candidate ${s.rank ?? ''}`,
+        name: s.displayLabel ?? `Site #${s.rank ?? ''}`,
         geometry: {
           type: 'Polygon' as const,
           coordinates: [[
@@ -163,16 +163,44 @@ onMounted(async () => {
     const data = await api.getProject(projectId)
     brief.value = data.brief
     spec.value = data.spec
-    // Try to load any legacy sites
+
+    const extendedBrief = data.brief as ProjectBrief & { defaultQuery?: string; showcaseSlug?: string }
+    if (extendedBrief.defaultQuery) {
+      queryText.value = extendedBrief.defaultQuery
+    }
+
+    try {
+      const snapshot = await api.getProjectLastQuery(projectId)
+      hydrateFromSnapshot(snapshot)
+      if (snapshot.pipelineSteps?.length) {
+        applyBackendSteps(snapshot.pipelineSteps)
+      }
+    } catch {
+      if (extendedBrief.defaultQuery && extendedBrief.defaultQuery.length >= minQueryLen) {
+        void handleQuery(extendedBrief.defaultQuery)
+      }
+    }
+
     try {
       legacySites.value = await api.getProjectSites(projectId)
     } catch {
       // No legacy sites — that's fine
     }
-    // Fly to relevant region based on spec
-    if (data.spec?.targetCountry === 'India') flyToRegion(78, 22, 2_800_000)
-    else if (data.spec?.targetCountry === 'USA') flyToRegion(-100, 38, 3_500_000)
-    else flyToRegion(20, 22, 14_000_000)
+
+    if (lastResult.value?.rankedSites?.length) {
+      // watch on rankedSites will fly to bounds
+    } else if (spec.value?.targetCountry === 'India') {
+      flyToRegion(78, 22, 2_800_000)
+    } else if (spec.value?.targetCountry === 'USA') {
+      flyToRegion(-100, 38, 3_500_000)
+    } else if (extendedBrief.showcaseSlug) {
+      const country = (extendedBrief as { country?: string }).country
+      if (country === 'India') flyToRegion(78, 22, 2_800_000)
+      else if (country === 'USA') flyToRegion(-108, 34, 3_800_000)
+      else flyToRegion(20, 22, 14_000_000)
+    } else {
+      flyToRegion(20, 22, 14_000_000)
+    }
   } catch (err) {
     loadError.value = String(err)
   }
@@ -186,7 +214,7 @@ onMounted(async () => {
     <template v-else>
       <!-- Project command bar -->
       <div class="shrink-0 border-b border-surface-border px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-        <span class="font-semibold text-zinc-200">{{ brief?.name ?? 'Project' }}</span>
+        <span class="font-semibold text-zinc-200">{{ spec?.name ?? (brief as { name?: string })?.name ?? 'Project' }}</span>
         <span class="text-zinc-600">|</span>
         <span class="text-zinc-500">Dataset <span class="text-zinc-300">{{ catalogSource ?? '—' }} v0.1</span></span>
         <span class="text-zinc-500">Policy <span class="font-mono text-zinc-300">{{ learningStatus?.activePolicyVersion ?? learningStatus?.scoringPolicyVersion ?? '—' }}</span></span>
@@ -287,15 +315,16 @@ onMounted(async () => {
         </template>
 
         <!-- CENTER: 3D globe -->
-        <div class="relative flex flex-col min-h-0 flex-1 h-full w-full">
+        <div class="relative flex-1 min-h-0 h-full w-full">
           <EarthEarthWorkspace
-            class="absolute inset-0"
+            class="h-full w-full min-h-[320px]"
             :sites="globeSites"
             :layers="layers"
             :selected-id="selectedId"
             @select="onGlobeSelect"
           />
           <MapSiteHoverCard
+            class="z-20"
             :site="globeSites.find((s) => s.id === selectedId) ?? null"
           />
         </div>

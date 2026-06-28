@@ -86,7 +86,12 @@ export function useApiClient() {
         body: JSON.stringify({ rawPrompt }),
       }),
 
-    listProjects: () => request<ProjectBrief[]>('/v1/projects'),
+    listProjects: () => request<import('~/types/api').ProjectListItem[]>('/v1/projects'),
+
+    getProjectLastQuery: (id: string) =>
+      request<import('~/composables/useProjectQuery').ProjectQueryResult>(
+        `/v1/projects/${id}/last-query`,
+      ),
 
     getProject: (id: string) => request<ProjectDetail>(`/v1/projects/${id}`),
 

@@ -4,7 +4,6 @@ import { z } from 'zod'
 import {
   createProjectBrief,
   getProjectBrief,
-  listProjectBriefs,
   saveProjectSpec,
   getProjectSpec,
 } from '../db/repositories/projects.js'
@@ -17,6 +16,13 @@ import { runScreeningJob } from '../jobs/screeningJob.js'
 import { getModelRerankForProject } from '../services/modelOutputService.js'
 import { logFeedback } from '../services/learningLoopService.js'
 import { runQueryPipeline } from '../services/queryPipelineService.js'
+import {
+  listProjectsForUi,
+  getProjectLastQuery,
+  warmAllShowcases,
+  warmShowcaseProject,
+} from '../services/showcaseService.js'
+import { saveProjectQuerySnapshot } from '../db/repositories/projectSnapshotsRepo.js'
 
 export const projectsRouter = new Hono()
 
@@ -40,8 +46,23 @@ projectsRouter.post(
 )
 
 projectsRouter.get('/', async (c) => {
-  const briefs = await listProjectBriefs()
+  const briefs = await listProjectsForUi()
+  void warmAllShowcases(false).catch(() => undefined)
   return c.json({ data: briefs })
+})
+
+projectsRouter.get('/:id/last-query', async (c) => {
+  const id = c.req.param('id')
+  const brief = await getProjectBrief(id)
+  if (!brief) return c.json({ error: 'Project not found' }, 404)
+
+  let snapshot = await getProjectLastQuery(id)
+  if (!snapshot) {
+    await warmShowcaseProject(id, false)
+    snapshot = await getProjectLastQuery(id)
+  }
+  if (!snapshot) return c.json({ error: 'No results yet' }, 404)
+  return c.json({ data: snapshot })
 })
 
 projectsRouter.get('/:id', async (c) => {
@@ -151,6 +172,8 @@ projectsRouter.post(
         limit: body.limit,
         existingSpec: existingSpec ?? null,
       })
+
+      await saveProjectQuerySnapshot(id, result as unknown as Record<string, unknown>)
 
       return c.json({ data: result })
     } catch (err) {

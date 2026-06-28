@@ -100,9 +100,12 @@ export async function updateQueryRun(queryId: string, patch: Record<string, unkn
 
 export async function insertParsedSpec(doc: Record<string, unknown>) {
   const c = await col('parsed_project_specs')
-  const record = { _id: uuid(), ...doc, createdAt: new Date() }
-  await c.insertOne(record)
-  return record
+  const briefId = String(doc.briefId ?? doc.projectId ?? '')
+  await c.updateOne(
+    { briefId },
+    { $set: { ...doc, updatedAt: new Date() }, $setOnInsert: { _id: uuid(), createdAt: new Date() } },
+    { upsert: true },
+  )
 }
 
 export async function insertFatalFlawReport(doc: Record<string, unknown>) {

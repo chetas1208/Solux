@@ -28,6 +28,12 @@ import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { CandidateSiteSummary } from '../db/repositories/lakeRepositories.js'
+import {
+  parseMissingDataFlags,
+  formatMissingFlagLabel,
+  diversifyCandidates,
+  buildCandidateDisplayLabel,
+} from './candidateRankingUtils.js'
 
 const REGION_ALIASES: Record<string, string[]> = {
   rajasthan: ['RAJ', 'Rajasthan'],
@@ -105,8 +111,8 @@ function loadCandidatesFromLocalParquet(
            solar_score, grid_score, vegetation_score
     FROM read_parquet('${parquet.replace(/'/g, "''")}')
     WHERE ${where}
-    ORDER BY final_score DESC NULLS LAST
-    LIMIT ${limit * 5}
+    ORDER BY final_score DESC NULLS LAST, solar_score DESC NULLS LAST, grid_score DESC NULLS LAST
+    LIMIT ${limit * 20}
   `
   try {
     const out = execSync(`duckdb -json -c "${sql.replace(/"/g, '\\"')}"`, {
@@ -114,31 +120,59 @@ function loadCandidatesFromLocalParquet(
       maxBuffer: 64 * 1024 * 1024,
     })
     const rows = JSON.parse(out || '[]') as Array<Record<string, unknown>>
-    return rows.map((r) => ({
-      candidateId: String(r.h3Index),
-      datasetVersion,
-      country: String(r.country),
-      state: String(r.region),
-      centroid: {
-        type: 'Point' as const,
-        coordinates: [Number(r.centroid_lon), Number(r.centroid_lat)] as [number, number],
-      },
-      siteSurfaceType: String(r.site_surface_type ?? 'land'),
-      finalScore: Number(r.final_score ?? 0),
-      confidence: Number(r.confidence_score ?? 0),
-      decision: String(r.decision ?? 'INVESTIGATE'),
-      topFatalFlaws: ((r.missing_data_flags as string[]) ?? []).slice(0, 5),
-      topPositiveFactors: [],
-      evidenceIds: [],
-      missingDataFlags: (r.missing_data_flags as string[]) ?? [],
-      spacesObjectRefs: {
-        siteScoresParquet: paths?.processed.siteScoresParquet ?? parquet,
-      },
-      ingestedAt: new Date(),
-    }))
+    return rows.map((r) => {
+      const flags = parseMissingDataFlags(r.missing_data_flags)
+      const solar = Number(r.solar_score ?? 0)
+      const grid = Number(r.grid_score ?? 0)
+      const veg = Number(r.vegetation_score ?? 0)
+      const positive: string[] = []
+      if (solar >= 70) positive.push(`Strong solar (${solar})`)
+      if (grid >= 70) positive.push(`Grid proximity (${grid})`)
+      if (veg >= 70) positive.push(`Low vegetation conflict (${veg})`)
+      return {
+        candidateId: String(r.h3Index),
+        datasetVersion,
+        country: String(r.country),
+        state: String(r.region),
+        centroid: {
+          type: 'Point' as const,
+          coordinates: [Number(r.centroid_lon), Number(r.centroid_lat)] as [number, number],
+        },
+        siteSurfaceType: String(r.site_surface_type ?? 'land'),
+        finalScore: Number(r.final_score ?? 0),
+        confidence: Number(r.confidence_score ?? 0),
+        decision: String(r.decision ?? 'INVESTIGATE'),
+        topFatalFlaws: flags.slice(0, 5).map(formatMissingFlagLabel),
+        topPositiveFactors: positive,
+        solarScore: solar,
+        gridScore: grid,
+        vegetationScore: veg,
+        evidenceIds: [],
+        missingDataFlags: flags,
+        spacesObjectRefs: {
+          siteScoresParquet: paths?.processed.siteScoresParquet ?? parquet,
+        },
+        ingestedAt: new Date(),
+      }
+    })
   } catch {
     return []
   }
+}
+
+function asStringArray(v: unknown): string[] {
+  return parseMissingDataFlags(v).map(formatMissingFlagLabel)
+}
+
+function buildPositiveFactors(s: Record<string, unknown>): string[] {
+  const out: string[] = []
+  const solar = Number(s.solarScore ?? 0)
+  const grid = Number(s.gridScore ?? 0)
+  const veg = Number(s.vegetationScore ?? 0)
+  if (solar >= 65) out.push(`Solar output ${solar}`)
+  if (grid >= 65) out.push(`Grid proximity ${grid}`)
+  if (veg >= 65) out.push(`Vegetation ${veg}`)
+  return out
 }
 
 function scoreBreakdownFromSummary(s: Record<string, unknown>) {
@@ -147,14 +181,8 @@ function scoreBreakdownFromSummary(s: Record<string, unknown>) {
     finalScore: Number(s.finalScore ?? 0),
     confidence: Number(s.confidence ?? 0),
     decision: String(s.decision ?? 'INVESTIGATE'),
-    missingDataWarnings: (s.missingDataFlags as string[]) ?? [],
+    missingDataWarnings: parseMissingDataFlags(s.missingDataFlags),
   }
-}
-
-function asStringArray(v: unknown): string[] {
-  if (Array.isArray(v)) return v.map(String)
-  if (v == null) return []
-  return [String(v)]
 }
 
 function buildReportText(
@@ -294,12 +322,16 @@ export async function runQueryPipeline(opts: {
 
   let spec = opts.existingSpec ?? null
   if (isLlmAvailable()) {
-    const parsed = await parseProjectPrompt(opts.userPrompt, opts.projectId)
-    spec = parsed.spec
-    await saveProjectSpec(spec)
-    await saveAgentTrace(parsed.trace)
-    await insertParsedSpec({ projectId: opts.projectId, queryId, spec, briefId: spec.name })
-    setStep('prompt_parsed', 'completed')
+    if (spec) {
+      setStep('prompt_parsed', 'completed', 'Using saved project spec')
+    } else {
+      const parsed = await parseProjectPrompt(opts.userPrompt, opts.projectId)
+      spec = parsed.spec
+      await saveProjectSpec(spec)
+      await saveAgentTrace(parsed.trace)
+      await insertParsedSpec({ projectId: opts.projectId, queryId, spec, briefId: spec.briefId })
+      setStep('prompt_parsed', 'completed')
+    }
   } else if (!spec) {
     setStep('prompt_parsed', 'failed', llmUnavailableReason())
     await updateQueryRun(queryId, { state: 'FAILED', error: llmUnavailableReason() })
@@ -414,7 +446,14 @@ export async function runQueryPipeline(opts: {
     }
   }
 
-  const baseRankedSites = candidates.slice(0, opts.limit).map((s, i) => ({
+  const baseRankedSites = diversifyCandidates(
+    candidates.map((s) => ({
+      ...s,
+      solarScore: Number((s as Record<string, unknown>).solarScore ?? 0),
+      gridScore: Number((s as Record<string, unknown>).gridScore ?? 0),
+    })),
+    opts.limit,
+  ).map((s, i) => ({
     rank: i + 1,
     candidateId: s.candidateId,
     country: s.country,
@@ -424,8 +463,14 @@ export async function runQueryPipeline(opts: {
     confidence: s.confidence,
     decision: s.decision,
     centroid: s.centroid,
-    topFatalFlaws: s.topFatalFlaws,
-    topPositiveFactors: s.topPositiveFactors,
+    solarScore: Number((s as Record<string, unknown>).solarScore ?? 0),
+    gridScore: Number((s as Record<string, unknown>).gridScore ?? 0),
+    topFatalFlaws: parseMissingDataFlags(
+      s.topFatalFlaws ?? (s as Record<string, unknown>).missingDataFlags,
+    ).map(formatMissingFlagLabel),
+    topPositiveFactors: (s.topPositiveFactors as string[] | undefined)?.length
+      ? (s.topPositiveFactors as string[])
+      : buildPositiveFactors(s),
     spacesObjectRefs: s.spacesObjectRefs,
     evidenceBacked: true,
   }))
@@ -443,10 +488,37 @@ export async function runQueryPipeline(opts: {
   const rankedSites = await Promise.all(
     baseRankedSites.map(async (s) => {
       const coords = (s.centroid as { coordinates: [number, number] } | undefined)?.coordinates
-      if (!coords) return { ...s, displayLabel: `Candidate ${s.rank}`, formattedAddress: null, locality: null, adminArea1: s.state }
-      const [lng, lat] = coords as [number, number]
-      const geo = await reverseGeocode(String(s.candidateId), lat, lng, s.state)
-      return { ...s, ...geo }
+      const [lng, lat] = coords ?? [0, 0]
+      if (!coords) {
+        return {
+          ...s,
+          displayLabel: buildCandidateDisplayLabel({
+            rank: s.rank,
+            state: String(s.state),
+            lat,
+            lng,
+            candidateId: String(s.candidateId),
+            finalScore: Number(s.finalScore),
+          }),
+          formattedAddress: null,
+          locality: null,
+          adminArea1: s.state,
+        }
+      }
+      const geo = await reverseGeocode(String(s.candidateId), lat, lng, String(s.state))
+      const displayLabel =
+        geo.locality && geo.adminArea1
+          ? `${geo.locality}, ${geo.adminArea1}`
+          : buildCandidateDisplayLabel({
+              rank: s.rank,
+              state: String(s.state),
+              lat,
+              lng,
+              candidateId: String(s.candidateId),
+              finalScore: Number(s.finalScore),
+              locality: geo.locality,
+            })
+      return { ...s, ...geo, displayLabel }
     }),
   )
 

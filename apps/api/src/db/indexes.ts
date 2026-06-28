@@ -4,6 +4,13 @@ import type { Db } from 'mongodb'
 export async function setupSpecIndexes(database: Db): Promise<void> {
   await database.collection('projects').createIndexes([
     { key: { createdAt: -1 }, name: 'createdAt_desc' },
+    { key: { showcaseSlug: 1 }, unique: true, sparse: true, name: 'showcaseSlug_unique' },
+    { key: { id: 1 }, unique: true, name: 'id_unique' },
+  ])
+
+  await database.collection('project_query_snapshots').createIndexes([
+    { key: { projectId: 1 }, unique: true, name: 'projectId_unique' },
+    { key: { updatedAt: -1 }, name: 'updatedAt_desc' },
   ])
 
   await database.collection('parsed_project_specs').createIndexes([

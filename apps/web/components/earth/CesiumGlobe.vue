@@ -101,6 +101,9 @@ async function initGlobe() {
       google3dEnabled: config.public.google3dTilesEnabled === true,
     })
 
+    viewer.scene.globe.show = true
+    viewer.scene.backgroundColor = CesiumMod.Color.fromCssColorString('#09090b')
+
     viewer.scene.screenSpaceCameraController.enableRotate = true
     viewer.scene.screenSpaceCameraController.enableZoom = true
     viewer.scene.screenSpaceCameraController.enableTilt = true
@@ -119,6 +122,11 @@ async function initGlobe() {
       resizeObserver.observe(container.value)
     }
     resizeViewer()
+
+    // Default world view so the globe is never an empty black panel
+    viewer.camera.setView({
+      destination: CesiumMod.Cartesian3.fromDegrees(-100, 38, 4_500_000),
+    })
 
     await syncSites()
     scene.value = {
@@ -175,6 +183,7 @@ async function syncSites() {
   }
 
   viewer.dataSources.add(ds)
+  viewer.flyTo(ds, { duration: 1.4 }).catch(() => undefined)
   resizeViewer()
   scene.value.sitesRendered = visibleSites.value.length
   scene.value.sitesTotal = props.sites.length
