@@ -6,6 +6,10 @@ import { projectsRouter } from './routes/projects.js'
 import { sitesRouter } from './routes/sites.js'
 import { reportsRouter } from './routes/reports.js'
 import { dataSourcesRouter } from './routes/dataSources.js'
+import { mapProvidersRouter } from './routes/mapProviders.js'
+import { learningLoopRouter } from './routes/learningLoop.js'
+import { datasetCatalogRouter } from './routes/datasetCatalog.js'
+import { modelOutputsRouter } from './routes/modelOutputs.js'
 
 const app = new Hono()
 
@@ -32,6 +36,10 @@ app.route('/v1/projects', projectsRouter)
 app.route('/v1/sites', sitesRouter)
 app.route('/v1/reports', reportsRouter)
 app.route('/v1/data-sources', dataSourcesRouter)
+app.route('/v1/map-providers', mapProvidersRouter)
+app.route('/v1/dataset', datasetCatalogRouter)
+app.route('/v1/model-outputs', modelOutputsRouter)
+app.route('/v1/learning-loop', learningLoopRouter)
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
 app.onError((err, c) => {

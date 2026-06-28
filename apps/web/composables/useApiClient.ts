@@ -109,6 +109,27 @@ export function useApiClient() {
     getDataSources: (deep = false) =>
       requestRaw<DataSourcesResponse>(`/v1/data-sources${deep ? '?deep=true' : ''}`).then((r) => r.data),
 
+    getMapProvidersStatus: () =>
+      request<import('~/types/map').MapProvidersResponse>('/v1/map-providers/status'),
+
+    getDatasetCatalog: () =>
+      request<{ source: string; catalog: unknown; message?: string }>('/v1/dataset/catalog'),
+
+    getModelOutputStatus: () =>
+      request<import('~/composables/useModelOutputs').ModelOutputStatus>('/v1/model-outputs/status'),
+
+    getLearningLoopStatus: () =>
+      request<import('~/composables/useLearningLoop').LearningLoopStatus>('/v1/learning-loop/status'),
+
+    getProjectModelRerank: (id: string) =>
+      request<{ available: boolean; sites: unknown[]; message?: string }>(`/v1/projects/${id}/model-rerank`),
+
+    submitProjectFeedback: (id: string, body: Record<string, unknown>) =>
+      request<{ recorded: boolean; message: string }>(`/v1/projects/${id}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
     listReportsByProject: (projectId: string) =>
       request<FatalFlawReport[]>(`/v1/reports?projectId=${encodeURIComponent(projectId)}`),
   }

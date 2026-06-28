@@ -30,6 +30,7 @@ onMounted(() => refresh(true))
     />
 
     <StatusOperationalReadinessPanel :summary="summary" />
+    <StatusMapReadinessPanel />
     <StatusCapabilityMatrix :rows="capabilityMatrix" />
     <StatusDataSourceStatusPanel title="Data coverage" :items="dataCapabilities" />
     <StatusDataSourceStatusPanel title="Core runtime" :items="coreCapabilities" />

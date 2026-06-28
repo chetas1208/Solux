@@ -40,12 +40,26 @@ const EnvSchema = z.object({
 
   // Maps
   GOOGLE_MAPS_API_KEY: z.string().default(''),
+  CESIUM_ION_TOKEN: z.string().default(''),
+  MAPTILER_KEY: z.string().default(''),
+  GOOGLE_3D_TILES_ENABLED: z
+    .enum(['true', 'false', '1', '0', ''])
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
 
   // Object storage
   DIGITALOCEAN_SPACES_ENDPOINT: z.string().default(''),
   DIGITALOCEAN_SPACES_BUCKET: z.string().default('solux-reports'),
   DIGITALOCEAN_SPACES_KEY: z.string().default(''),
   DIGITALOCEAN_SPACES_SECRET: z.string().default(''),
+
+  // Data lake + model pipeline
+  DATA_ROOT: z.string().default('/data/solux'),
+  DATASET_VERSION: z.string().default('v0.1'),
+  SOLUX_DATASET_PREFIX: z.string().default('datasets/solux-site-screening/v0.1'),
+  SOLUX_OUTPUT_PREFIX: z.string().default('outputs/solux-site-screening/v0.1'),
+  SOLUX_MODEL_ENDPOINT: z.string().default(''),
+  SOLUX_MODEL_ENDPOINT_AUTH: z.string().default(''),
 })
 
 function parseEnv() {

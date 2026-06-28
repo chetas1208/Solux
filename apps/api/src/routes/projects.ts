@@ -14,6 +14,9 @@ import { saveAgentTrace } from '../db/repositories/agentTraceRepo.js'
 import { parseProjectPrompt } from '../agent/parseProjectPrompt.js'
 import { GeminiClient } from '../agent/geminiClient.js'
 import { runScreeningJob } from '../jobs/screeningJob.js'
+import { v4 as uuid } from 'uuid'
+import { getModelRerankForProject } from '../services/modelOutputService.js'
+import { logQueryRun, logFeedback } from '../services/learningLoopService.js'
 
 export const projectsRouter = new Hono()
 
@@ -112,3 +115,74 @@ projectsRouter.get('/:id/evidence', async (c) => {
   const evidence = await getEvidenceForProject(id)
   return c.json({ data: evidence })
 })
+
+projectsRouter.get('/:id/model-rerank', async (c) => {
+  const id = c.req.param('id')
+  const rerank = await getModelRerankForProject(id)
+  return c.json({ data: rerank })
+})
+
+projectsRouter.post(
+  '/:id/query',
+  zValidator('json', z.object({ query: z.string().min(3).max(4000) })),
+  async (c) => {
+    const id = c.req.param('id')
+    const { query } = c.req.valid('json')
+    const spec = await getProjectSpec(id)
+    if (!spec) {
+      return c.json({ error: 'Project spec not found', detail: 'Parse prompt first' }, 400)
+    }
+    const sites = await getSitesByProject(id)
+    const scores = await getScoresByProject(id)
+    const rerank = await getModelRerankForProject(id)
+    const queryId = uuid()
+    await logQueryRun({
+      queryId,
+      projectId: id,
+      userPrompt: query,
+      parsedProjectSpec: spec,
+      retrievedCandidateIds: sites.map((s) => s.id),
+      deterministicScores: scores,
+      modelRerankAvailable: rerank.available,
+      finalRankedIds: rerank.available
+        ? (rerank.sites as Array<{ candidateId: string }>).map((s) => s.candidateId)
+        : sites.map((s) => s.id),
+    })
+    return c.json({
+      data: {
+        queryId,
+        siteCount: sites.length,
+        modelRerankAvailable: rerank.available,
+        message: rerank.available
+          ? 'Query logged with model rerank'
+          : 'Model reranking unavailable; deterministic evidence scoring active.',
+      },
+    })
+  },
+)
+
+projectsRouter.post(
+  '/:id/feedback',
+  zValidator(
+    'json',
+    z.object({
+      siteId: z.string(),
+      verdict: z.enum(['accepted', 'rejected', 'corrected']),
+      reason: z.string().optional(),
+      rating: z.number().min(1).max(5).optional(),
+      correction: z.string().optional(),
+      missingSourceNote: z.string().optional(),
+    }),
+  ),
+  async (c) => {
+    const id = c.req.param('id')
+    const body = c.req.valid('json')
+    await logFeedback({ projectId: id, ...body })
+    return c.json({
+      data: {
+        recorded: true,
+        message: 'Feedback recorded — scoring policy updates only after evaluation.',
+      },
+    })
+  },
+)

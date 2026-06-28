@@ -12,7 +12,13 @@ export default defineNuxtConfig({
     public: {
       /** Empty = same-origin — API is mounted at /health and /v1 on this server. */
       apiBaseUrl: process.env['NUXT_PUBLIC_API_BASE_URL'] ?? '',
+      mapProvider: (process.env['NUXT_PUBLIC_MAP_PROVIDER'] ?? 'cesium') as 'cesium' | 'maplibre',
+      enable3dEarth: process.env['NUXT_PUBLIC_ENABLE_3D_EARTH'] !== 'false',
+      cesiumIonToken: process.env['NUXT_PUBLIC_CESIUM_ION_TOKEN'] ?? '',
+      googleMapsApiKey: process.env['NUXT_PUBLIC_GOOGLE_MAPS_API_KEY'] ?? '',
+      google3dTilesEnabled: process.env['NUXT_PUBLIC_GOOGLE_3D_TILES_ENABLED'] === 'true',
       maptilerKey: process.env['NUXT_PUBLIC_MAPTILER_KEY'] ?? '',
+      mapFallback: (process.env['NUXT_PUBLIC_MAP_FALLBACK'] ?? 'maplibre') as 'maplibre' | 'table',
     },
   },
 
@@ -56,6 +62,12 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
+  },
+
+  vite: {
+    server: {
+      allowedHosts: ['.trycloudflare.com'],
+    },
   },
 
   compatibilityDate: '2025-06-27',

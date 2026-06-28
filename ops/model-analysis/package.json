@@ -1,0 +1,23 @@
+{
+  "name": "@solux/model-analysis",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "probe": "tsx modelEndpointClient.ts",
+    "analyze": "tsx run-model-analysis.ts",
+    "validate": "tsx validateModelOutputs.ts",
+    "push": "tsx push-model-outputs.ts",
+    "learning-status": "tsx learningLoop.ts --status-only"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.665.0",
+    "duckdb": "^1.1.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

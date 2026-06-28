@@ -42,10 +42,17 @@ services:
       - key: DIGITALOCEAN_SPACES_KEY
         type: SECRET
         value: PLACEHOLDER
-      - key: DIGITALOCEAN_SPACES_SECRET
+      - key: GOOGLE_MAPS_API_KEY
         type: SECRET
         value: PLACEHOLDER
-    health_check:
+      - key: CESIUM_ION_TOKEN
+        type: SECRET
+        value: PLACEHOLDER
+      - key: MAPTILER_KEY
+        type: SECRET
+        value: PLACEHOLDER
+      - key: GOOGLE_3D_TILES_ENABLED
+        value: "false"
       http_path: /health
 
   - name: web
@@ -64,3 +71,15 @@ services:
         value: ${api.PUBLIC_URL}
       - key: NUXT_PUBLIC_MAPTILER_KEY
         value: PLACEHOLDER
+      - key: NUXT_PUBLIC_MAP_PROVIDER
+        value: cesium
+      - key: NUXT_PUBLIC_ENABLE_3D_EARTH
+        value: "true"
+      - key: NUXT_PUBLIC_CESIUM_ION_TOKEN
+        value: PLACEHOLDER
+      - key: NUXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        value: PLACEHOLDER
+      - key: NUXT_PUBLIC_GOOGLE_3D_TILES_ENABLED
+        value: "false"
+      - key: NUXT_PUBLIC_MAP_FALLBACK
+        value: maplibre

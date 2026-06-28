@@ -14,6 +14,10 @@ const route = useRoute()
       </span>
     </div>
     <div class="flex items-center gap-2 text-xs">
+      <NuxtLink to="/diagnostics/maps" class="text-zinc-500 hover:text-zinc-300 transition-colors">
+        Map diagnostics
+      </NuxtLink>
+      <span class="text-zinc-700">|</span>
       <NuxtLink to="/status" class="text-zinc-500 hover:text-zinc-300 transition-colors">
         Readiness
       </NuxtLink>

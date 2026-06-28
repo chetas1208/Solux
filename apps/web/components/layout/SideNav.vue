@@ -3,6 +3,7 @@ const links = [
   { to: '/', label: 'Home' },
   { to: '/projects', label: 'Projects' },
   { to: '/status', label: 'Readiness' },
+  { to: '/diagnostics/maps', label: 'Map diagnostics' },
 ]
 </script>
 

@@ -5,7 +5,9 @@ const sponsors = [
   { name: 'MiniMax', role: 'Voice briefing', state: 'NOT_CONFIGURED' as const },
   { name: 'DigitalOcean', role: 'Deployment / report storage', state: 'UNKNOWN' as const },
   { name: 'Mojo', role: 'Scoring kernel path', state: 'NOT_CONFIGURED' as const },
-  { name: 'Hosted open-source models', role: 'Registry-visible, not required for deterministic scoring', state: 'NOT_CONFIGURED' as const },
+  { name: 'CesiumJS', role: '3D Earth visualization engine', state: 'READY' as const },
+  { name: 'Google 3D Tiles', role: 'Optional photorealistic mesh layer', state: 'NOT_CONFIGURED' as const },
+  { name: 'MapTiler / MapLibre', role: '2D fallback basemap', state: 'NOT_CONFIGURED' as const },
 ]
 </script>
 

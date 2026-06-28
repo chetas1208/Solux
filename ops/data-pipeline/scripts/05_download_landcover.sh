@@ -23,12 +23,12 @@ if [[ "$DOWNLOAD_WORLD_COVER" != "true" ]]; then
 fi
 
 log_info "Downloading ESA WorldCover 2021 v200 tiles …"
-log_info "Tile index from: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/esa_worldcover_2021_grid.geojson"
+log_info "Tile index from: https://esa-worldcover.s3.eu-central-1.amazonaws.com/esa_worldcover_grid.geojson"
 
-# Download the tile grid to select relevant tiles
+# Download the tile grid to select relevant tiles (grid lives at bucket root, not v200/2021)
 TILE_INDEX="${RAW}/esa_worldcover_grid.geojson"
 download_if_missing \
-  "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/esa_worldcover_2021_grid.geojson" \
+  "https://esa-worldcover.s3.eu-central-1.amazonaws.com/esa_worldcover_grid.geojson" \
   "$TILE_INDEX" "ESA WorldCover tile index" || {
     log_warn "Could not download ESA WorldCover tile index"
     write_source_meta "esa_worldcover" "tile_index_failed" "$RAW"
@@ -37,54 +37,47 @@ download_if_missing \
 
 log_info "Selecting tiles for configured countries/regions …"
 
-# Use tsx to select which tiles overlap the region of interest
-run_tsx "io/raster.ts" select-worldcover-tiles \
-  --tile-index "$TILE_INDEX" \
-  --countries "$COUNTRY_SCOPE" \
-  --region-subset "$RUN_REGION_SUBSET" \
-  --output "${RAW}/selected_tiles.txt" 2>/tmp/tsx_err.txt \
-  || {
-    log_warn "Tile selection via tsx failed: $(cat /tmp/tsx_err.txt | head -3)"
-    log_warn "Falling back to all tiles for region bounding box"
-    # Fallback: define approximate tile grid IDs for USA/India solar regions
-    {
-      scope_includes "USA" && cat << 'TILES'
-N30W120
-N30W110
-N30W100
-N30W090
-N35W120
-N35W110
-N35W100
-N35W090
-TILES
-      scope_includes "INDIA" && cat << 'TILES'
-N20E070
-N20E080
-N25E070
-N25E080
-N30E070
-N30E080
-TILES
-    } > "${RAW}/selected_tiles.txt"
-  }
+# Tile grid uses 3-degree cells. Extract tiles from the downloaded geojson using bbox filters.
+# USA solar region: lat 24-42, lon -125 to -93 (AZ, CA, NV, TX, NM, NM)
+# India solar region: lat 8-37, lon 65-97
 
-TILE_COUNT=$(wc -l < "${RAW}/selected_tiles.txt" | tr -d ' ')
-log_info "Downloading ${TILE_COUNT} ESA WorldCover tiles …"
+{
+  if scope_includes "USA"; then
+    # Filter tiles in USA solar bbox (ll_tile = lower-left corner, so N=lat, W/E=lon)
+    jq -r '.features[] | .properties.ll_tile |
+      select(
+        test("^N(2[4-9]|3[0-9]|4[0-2])W(9[3-9]|1[01][0-9]|12[0-5])$")
+      )' "$TILE_INDEX" 2>/dev/null || true
+  fi
+  if scope_includes "INDIA"; then
+    # Tiles are zero-padded 2-digit lat, 3-digit lon: N09E075, N00E072, etc.
+    # India solar bbox: lat 0-37, lon 065-097
+    jq -r '.features[] | .properties.ll_tile |
+      select(
+        test("^N(0[0-9]|[12][0-9]|3[0-7])E0(6[5-9]|[7-8][0-9]|9[0-7])$")
+      )' "$TILE_INDEX" 2>/dev/null || true
+  fi
+} | sort -u > "${RAW}/selected_tiles.txt"
+
+TILE_COUNT=$(grep -c . "${RAW}/selected_tiles.txt" 2>/dev/null || echo 0)
+log_info "Selected ${TILE_COUNT} ESA WorldCover tiles for download …"
 
 while IFS= read -r tile_id; do
   [[ -z "$tile_id" ]] && continue
   TILE_FILE="ESA_WorldCover_10m_2021_v200_${tile_id}_Map.tif"
-  TILE_URL="https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/${TILE_FILE}"
   TILE_DEST="${RAW}/${TILE_FILE}"
+  S3_PATH="s3://esa-worldcover/v200/2021/map/${TILE_FILE}"
 
-  download_if_missing "$TILE_URL" "$TILE_DEST" "WorldCover tile ${tile_id}" || {
-    log_warn "Could not download tile ${tile_id} — trying alternate URL pattern"
-    # Some tiles have lowercase naming
-    TILE_FILE_ALT="esa_worldcover_10m_2021_v200_${tile_id,,}_map.tif"
-    TILE_URL_ALT="https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/${TILE_FILE_ALT}"
-    download_if_missing "$TILE_URL_ALT" "${RAW}/${TILE_FILE_ALT}" "WorldCover tile ${tile_id} (alt)" || true
-  }
+  if [[ -f "$TILE_DEST" ]]; then
+    log_skip "WorldCover tile ${tile_id} already downloaded"
+    continue
+  fi
+  log_info "Downloading WorldCover tile ${tile_id} …"
+  if aws s3 cp "$S3_PATH" "$TILE_DEST" --no-sign-request --quiet 2>/dev/null; then
+    log_ok "Saved ${TILE_DEST}"
+  else
+    log_warn "Could not download tile ${tile_id} — skipping"
+  fi
 done < "${RAW}/selected_tiles.txt"
 
 # Count successfully downloaded tiles

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/copy-cesium.mjs",
     "dev": "NODE_OPTIONS='--experimental-require-module' nuxt dev",
     "build": "NODE_OPTIONS='--experimental-require-module' nuxt build",
     "start": "node .output/server/index.mjs",
@@ -14,6 +15,7 @@
     "@solux/api": "workspace:*",
     "@solux/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
+    "cesium": "^1.128.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "echarts": "^5.6.0",
@@ -36,6 +38,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vite-plugin-cesium": "^1.2.23"
   }
 }
