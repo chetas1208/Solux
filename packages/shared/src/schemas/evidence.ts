@@ -12,6 +12,9 @@ export const DataSourceIdSchema = z.enum([
   'google_earth_engine',
   'manual_input',
   'mojo_kernel',
+  // AI services
+  'gemini',
+  'minimax',
 ])
 export type DataSourceId = z.infer<typeof DataSourceIdSchema>
 
@@ -23,6 +26,8 @@ export const DataSourceStatusSchema = z.object({
   unavailableReason: z.string().optional(),
   lastCheckedAt: z.string().datetime().optional(),
   coverageDescription: z.string().optional(),
+  /** Whether a live probe request was made during this check */
+  deepCheckRan: z.boolean().optional(),
 })
 export type DataSourceStatus = z.infer<typeof DataSourceStatusSchema>
 

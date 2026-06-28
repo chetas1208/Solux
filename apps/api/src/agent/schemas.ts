@@ -45,6 +45,8 @@ export const DataSourceIdSchema = z.enum([
   'google_earth_engine',
   'manual_input',
   'mojo_kernel',
+  'gemini',
+  'minimax',
 ])
 export type DataSourceId = z.infer<typeof DataSourceIdSchema>
 

@@ -48,7 +48,10 @@ export function useOperationalReadiness() {
   const coreCapabilities = computed<CapabilityItem[]>(() => {
     const now = apiHealth.value.checkedAt ?? new Date().toISOString()
     const pvgis = sources.value.find((s) => s.id === 'pvgis')
-    const geminiState: CapabilityState = 'NOT_CONFIGURED'
+    const gemini = sources.value.find((s) => s.id === 'gemini')
+    const geminiState: CapabilityState = gemini
+      ? gemini.available ? 'READY' : 'NOT_CONFIGURED'
+      : 'NOT_CONFIGURED'
     const mongoState: CapabilityState = apiHealth.value.ok ? 'READY' : 'UNAVAILABLE'
 
     return [
@@ -80,21 +83,21 @@ export function useOperationalReadiness() {
         group: 'core_runtime',
         state: geminiState,
         whyItMatters: 'Parses prompts, plans screening, generates grounded reports.',
-        lastCheckedAt: now,
-        confidenceImpact: 'Prompt parsing and AI reports require Gemini.',
+        lastCheckedAt: gemini?.lastCheckedAt ?? now,
+        confidenceImpact: geminiState === 'READY' ? 'Prompt parsing and AI reports active.' : 'Prompt parsing and AI reports require Gemini.',
         fallbackBehavior: 'Deterministic scoring still runs; AI reports unavailable.',
-        actionNeeded: 'Set GEMINI_API_KEY on backend.',
+        actionNeeded: gemini?.unavailableReason,
       },
       {
         id: 'report_generator',
         name: 'Report generator',
         group: 'core_runtime',
-        state: geminiState === 'NOT_CONFIGURED' ? 'DEGRADED' : 'READY',
+        state: geminiState === 'READY' ? 'READY' : 'DEGRADED',
         whyItMatters: 'Produces evidence-guarded fatal-flaw reports.',
         lastCheckedAt: now,
         confidenceImpact: 'Without Gemini, reports cannot be generated.',
         fallbackBehavior: 'Score breakdown and evidence table still available.',
-        actionNeeded: geminiState === 'NOT_CONFIGURED' ? 'Configure Gemini for AI reports.' : undefined,
+        actionNeeded: geminiState !== 'READY' ? 'Configure Gemini for AI reports.' : undefined,
       },
       {
         id: 'pvgis_check',
@@ -112,50 +115,63 @@ export function useOperationalReadiness() {
 
   const dataCapabilities = computed(() => sources.value.map(toCapability))
 
-  const aiCapabilities = computed<CapabilityItem[]>(() => [
-    {
-      id: 'gemini_planner',
-      name: 'Gemini planner',
-      group: 'ai_model',
-      state: 'NOT_CONFIGURED',
-      whyItMatters: 'Plans tool calls for screening runs.',
-      confidenceImpact: 'Tool plan quality depends on Gemini availability.',
-      fallbackBehavior: 'Deterministic screening pipeline used.',
-      actionNeeded: 'Set GEMINI_API_KEY on backend.',
-    },
-    {
-      id: 'gemini_verifier',
-      name: 'Gemini verifier',
-      group: 'ai_model',
-      state: 'NOT_CONFIGURED',
-      whyItMatters: 'Second-pass claim verification on reports.',
-      confidenceImpact: 'Hallucination scoring degraded without verifier.',
-      fallbackBehavior: 'Evidence guard still filters unsupported claims.',
-      actionNeeded: 'Set GEMINI_REPORT_MODEL on backend.',
-    },
-    {
-      id: 'model_registry',
-      name: 'Local model registry',
-      group: 'ai_model',
-      state: 'NOT_CONFIGURED',
-      whyItMatters: 'Hosted models visible but not required for deterministic scoring.',
-      confidenceImpact: 'No impact on core GO/INVESTIGATE/KILL scoring.',
-      fallbackBehavior: 'TypeScript scoring path always available.',
-      actionNeeded: 'Set MODEL_REGISTRY_DIR to expose hosted models.',
-    },
-    {
-      id: 'minimax',
-      name: 'MiniMax voice briefing',
-      group: 'ai_model',
-      state: 'NOT_CONFIGURED',
-      whyItMatters: 'Optional spoken executive briefing.',
-      confidenceImpact: 'MiniMax unavailable. Voice briefing disabled. Core fatal-flaw screening unaffected.',
-      fallbackBehavior: 'Text report remains available.',
-      actionNeeded: 'Set MINIMAX_API_KEY and MINIMAX_GROUP_ID.',
-    },
-  ])
+  const aiCapabilities = computed<CapabilityItem[]>(() => {
+    const gemini = sources.value.find((s) => s.id === 'gemini')
+    const minimax = sources.value.find((s) => s.id === 'minimax')
+    const mojo = sources.value.find((s) => s.id === 'mojo_kernel')
+    const geminiState: CapabilityState = gemini ? (gemini.available ? 'READY' : 'NOT_CONFIGURED') : 'NOT_CONFIGURED'
+    const minimaxState: CapabilityState = minimax ? (minimax.available ? 'READY' : 'NOT_CONFIGURED') : 'NOT_CONFIGURED'
+    const mojoState: CapabilityState = mojo ? (mojo.available ? 'READY' : 'NOT_CONFIGURED') : 'NOT_CONFIGURED'
 
-  const scoringCapabilities = computed<CapabilityItem[]>(() => [
+    return [
+      {
+        id: 'gemini_planner',
+        name: 'Gemini planner',
+        group: 'ai_model',
+        state: geminiState,
+        whyItMatters: 'Parses natural-language prompts and plans screening runs.',
+        confidenceImpact: geminiState === 'READY' ? 'Prompt parsing active.' : 'Tool plan quality depends on Gemini availability.',
+        fallbackBehavior: 'Deterministic screening pipeline used.',
+        actionNeeded: gemini?.unavailableReason,
+      },
+      {
+        id: 'gemini_verifier',
+        name: 'Gemini claim verifier',
+        group: 'ai_model',
+        state: geminiState,
+        whyItMatters: 'Second-pass claim verification on reports.',
+        confidenceImpact: geminiState === 'READY' ? 'Claim verification active.' : 'Hallucination scoring degraded without verifier.',
+        fallbackBehavior: 'Evidence guard still filters unsupported claims.',
+        actionNeeded: gemini?.unavailableReason,
+      },
+      {
+        id: 'minimax',
+        name: 'MiniMax voice briefing',
+        group: 'ai_model',
+        state: minimaxState,
+        whyItMatters: 'Optional spoken 60-second executive briefing.',
+        confidenceImpact: minimaxState === 'READY' ? 'Voice briefings available.' : 'Voice briefing disabled. Core screening unaffected.',
+        fallbackBehavior: 'Text report always available.',
+        actionNeeded: minimax?.unavailableReason,
+      },
+      {
+        id: 'mojo_kernel',
+        name: 'Mojo scoring kernel',
+        group: 'ai_model',
+        state: mojoState,
+        whyItMatters: 'High-performance scoring kernel path.',
+        confidenceImpact: mojoState === 'READY' ? 'Mojo kernel active.' : 'TypeScript scoring fallback active.',
+        fallbackBehavior: 'TypeScript scoring always available.',
+        actionNeeded: mojo?.unavailableReason,
+      },
+    ]
+  })
+
+  const scoringCapabilities = computed<CapabilityItem[]>(() => {
+    const mojo = sources.value.find((s) => s.id === 'mojo_kernel')
+    const mojoState: CapabilityState = mojo ? (mojo.available ? 'READY' : 'NOT_CONFIGURED') : 'NOT_CONFIGURED'
+
+    return [
     {
       id: 'ts_scoring',
       name: 'TypeScript scoring fallback',
@@ -169,11 +185,11 @@ export function useOperationalReadiness() {
       id: 'mojo_kernel',
       name: 'Mojo scoring kernel',
       group: 'scoring_execution',
-      state: 'NOT_CONFIGURED',
+      state: mojoState,
       whyItMatters: 'High-performance scoring kernel path.',
-      confidenceImpact: 'Mojo kernel unavailable. TypeScript scoring fallback active.',
+      confidenceImpact: mojoState === 'READY' ? 'Mojo kernel active.' : 'TypeScript scoring fallback active.',
       fallbackBehavior: 'TypeScript scoring fallback active.',
-      actionNeeded: 'Set MOJO_SCORE_KERNEL_BIN on backend.',
+      actionNeeded: mojo?.unavailableReason,
     },
     {
       id: 'evidence_guard',
@@ -193,7 +209,8 @@ export function useOperationalReadiness() {
       confidenceImpact: 'Visible on report when verification runs.',
       fallbackBehavior: 'Score shown as unavailable if verification skipped.',
     },
-  ])
+  ]
+  })
 
   const capabilityMatrix = computed<CapabilityMatrixRow[]>(() => {
     const src = (ids: string[]) =>
@@ -211,7 +228,7 @@ export function useOperationalReadiness() {
     }
 
     return [
-      { id: 'parse', capability: 'Prompt parsing', state: 'NOT_CONFIGURED', requiredSources: ['Gemini'], fallback: 'Manual spec entry unavailable', confidenceImpact: 'Cannot parse natural-language requirements.' },
+      { id: 'parse', capability: 'Prompt parsing', state: stateFor(['gemini']), requiredSources: [src(['gemini'])], fallback: 'Manual spec entry unavailable', confidenceImpact: 'Cannot parse natural-language requirements.' },
       { id: 'land', capability: 'Land solar screening', state: stateFor(['pvgis', 'nrel_nsrdb', 'global_solar_atlas', 'openstreetmap']), requiredSources: [src(['pvgis', 'nrel_nsrdb']), src(['openstreetmap'])], fallback: 'PVGIS for irradiance', confidenceImpact: 'Missing irradiance lowers power confidence.' },
       { id: 'water', capability: 'Floating/inland water screening', state: stateFor(['gebco', 'openstreetmap']), requiredSources: [src(['gebco']), src(['openstreetmap'])], fallback: 'Land-only candidates', confidenceImpact: 'GEBCO unavailable. Shallow-water screening disabled for this run.' },
       { id: 'coastal', capability: 'Shallow coastal screening', state: stateFor(['gebco', 'copernicus_marine']), requiredSources: [src(['gebco']), src(['copernicus_marine'])], fallback: 'Inland water only', confidenceImpact: 'Wave/current data missing reduces coastal confidence.' },
@@ -221,9 +238,9 @@ export function useOperationalReadiness() {
       { id: 'storage', capability: 'Storage feasibility', state: 'READY', requiredSources: ['Project spec'], fallback: 'Rule-based scoring', confidenceImpact: 'Based on spec constraints only.' },
       { id: 'loss', capability: 'Power-loss scoring', state: stateFor(['pvgis', 'nrel_nsrdb']), requiredSources: [src(['pvgis'])], fallback: 'Regional defaults', confidenceImpact: 'Loss estimates less precise.' },
       { id: 'atmo', capability: 'Atmospheric risk', state: stateFor(['pvgis', 'nrel_nsrdb']), requiredSources: [src(['pvgis'])], fallback: 'Conservative dust/soiling factor', confidenceImpact: 'Atmospheric confidence may be reduced.' },
-      { id: 'reports', capability: 'Evidence-guarded reports', state: 'DEGRADED', requiredSources: ['Gemini', 'Evidence store'], fallback: 'Score breakdown only', confidenceImpact: 'AI narrative unavailable without Gemini.' },
-      { id: 'briefing', capability: 'MiniMax briefing', state: 'NOT_CONFIGURED', requiredSources: ['MiniMax'], fallback: 'Text report', confidenceImpact: 'Voice briefing disabled.' },
-      { id: 'mojo', capability: 'Mojo scoring', state: 'NOT_CONFIGURED', requiredSources: ['Mojo binary'], fallback: 'TypeScript scoring', confidenceImpact: 'Performance path unavailable.' },
+      { id: 'reports', capability: 'Evidence-guarded reports', state: stateFor(['gemini']), requiredSources: [src(['gemini']), 'Evidence store'], fallback: 'Score breakdown only', confidenceImpact: 'AI narrative unavailable without Gemini.' },
+      { id: 'briefing', capability: 'MiniMax briefing', state: stateFor(['minimax']), requiredSources: [src(['minimax'])], fallback: 'Text report', confidenceImpact: 'Voice briefing disabled.' },
+      { id: 'mojo', capability: 'Mojo scoring', state: stateFor(['mojo_kernel']), requiredSources: [src(['mojo_kernel'])], fallback: 'TypeScript scoring', confidenceImpact: 'Performance path unavailable.' },
     ]
   })
 
@@ -250,7 +267,7 @@ export function useOperationalReadiness() {
       coreScreening: apiHealth.value.ok ? worstState(landStates) : 'UNAVAILABLE',
       landScreening: worstState(landStates),
       waterScreening: worstState(waterStates),
-      voiceBriefing: 'NOT_CONFIGURED',
+      voiceBriefing: sources.value.find((s) => s.id === 'minimax')?.available ? 'READY' : 'NOT_CONFIGURED',
       modelCache: 'NOT_CONFIGURED',
     }
   })
