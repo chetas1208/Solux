@@ -17,33 +17,33 @@ services:
         value: production
       - key: MONGODB_URI
         type: SECRET
-        value: PLACEHOLDER
+        value: ${MONGODB_URI}
       - key: MONGODB_DB
         value: solux
       - key: GEMINI_API_KEY
         type: SECRET
-        value: PLACEHOLDER
+        value: ${GEMINI_API_KEY}
       - key: NREL_API_KEY
         type: SECRET
-        value: PLACEHOLDER
+        value: ${NREL_API_KEY}
       - key: MINIMAX_API_KEY
         type: SECRET
-        value: PLACEHOLDER
+        value: ${MINIMAX_API_KEY}
       - key: MINIMAX_GROUP_ID
         type: SECRET
-        value: PLACEHOLDER
+        value: ${MINIMAX_GROUP_ID}
       - key: CORS_ORIGIN
         value: ${web.PUBLIC_URL}
       - key: DIGITALOCEAN_SPACES_ENDPOINT
-        value: PLACEHOLDER
+        value: ${DIGITALOCEAN_SPACES_ENDPOINT}
       - key: DIGITALOCEAN_SPACES_BUCKET
         value: solux-reports
       - key: DIGITALOCEAN_SPACES_KEY
         type: SECRET
-        value: PLACEHOLDER
+        value: ${DIGITALOCEAN_SPACES_KEY}
       - key: DIGITALOCEAN_SPACES_SECRET
         type: SECRET
-        value: PLACEHOLDER
+        value: ${DIGITALOCEAN_SPACES_SECRET}
     health_check:
       http_path: /health
 
@@ -61,4 +61,4 @@ services:
       - key: NUXT_PUBLIC_API_BASE_URL
         value: ${api.PUBLIC_URL}
       - key: NUXT_PUBLIC_MAPTILER_KEY
-        value: PLACEHOLDER
+        value: ${NUXT_PUBLIC_MAPTILER_KEY}
