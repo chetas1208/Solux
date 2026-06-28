@@ -1,0 +1,38 @@
+.env
+.venv/
+.pixi/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__mojocache__/
+*.log
+.api.pid
+.cloudflared.pid
+.max-critic.pid
+.nuxt.pid
+public_url.txt
+
+# Model cache and outputs (large local artifacts)
+/data/
+*.ckpt
+*.pth
+*.safetensors
+*.onnx
+*.npy
+
+# Compiled Mojo extension (rebuild via modular/build-kernels.sh)
+modular/kernels/solux_kernels.so
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
