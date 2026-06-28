@@ -65,5 +65,20 @@ export async function setupIndexes(): Promise<void> {
     { key: { briefId: 1 }, unique: true, name: 'briefId_unique' },
   ])
 
+  // reports
+  await database.collection('reports').createIndexes([
+    { key: { projectId: 1 }, name: 'projectId' },
+    { key: { siteId: 1 }, name: 'siteId' },
+    { key: { generatedAt: -1 }, name: 'generatedAt_desc' },
+    { key: { 'scoreBreakdown.finalDecision': 1 }, name: 'decision' },
+  ])
+
+  // data_source_runs
+  await database.collection('data_source_runs').createIndexes([
+    { key: { projectId: 1 }, name: 'projectId' },
+    { key: { sourceId: 1 }, name: 'sourceId' },
+    { key: { startedAt: -1 }, name: 'startedAt_desc' },
+  ])
+
   console.log('MongoDB indexes set up successfully')
 }

@@ -53,12 +53,18 @@ importers:
       '@solux/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@turf/turf':
+        specifier: ^7.2.0
+        version: 7.3.5
       hono:
         specifier: ^4.6.0
         version: 4.12.27
       mongodb:
         specifier: ^6.9.0
         version: 6.21.0
+      tsx:
+        specifier: ^4.16.0
+        version: 4.22.4
       uuid:
         specifier: ^10.0.0
         version: 10.0.0
@@ -72,9 +78,6 @@ importers:
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
-      tsx:
-        specifier: ^4.16.0
-        version: 4.22.4
       typescript:
         specifier: ^5.5.0
         version: 5.9.3

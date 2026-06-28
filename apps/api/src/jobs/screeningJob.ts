@@ -201,7 +201,7 @@ export async function runScreeningJob(spec: ProjectSpec): Promise<ScreeningJobRe
         storageFeasibilityScore: storageResult.storageFeasibilityScore,
         powerLossScore: atmosphereResult.powerLossScore,
         atmosphereRiskScore: atmosphereResult.atmosphereRiskScore,
-        waterFeasibilityScore,
+        ...(waterFeasibilityScore !== undefined ? { waterFeasibilityScore } : {}),
         killTriggers,
         missingDataWarnings,
         evidenceIds: siteEvidence.map((e) => e.id),

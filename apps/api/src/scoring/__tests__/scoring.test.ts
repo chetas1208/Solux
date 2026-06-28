@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { scoreSolarOutput } from '../solarOutputScore.js'
 import { scoreGridConnectivity } from '../gridConnectivityScore.js'
 import { computeFinalDecision } from '../finalDecision.js'
-import type { CandidateSite } from '@solux/shared'
+import type { CandidateSite, EvidenceItem } from '@solux/shared'
 
-const noEvidence = []
+const noEvidence: EvidenceItem[] = []
 
 describe('scoreSolarOutput', () => {
   it('returns low score for GHI < 3.5', () => {

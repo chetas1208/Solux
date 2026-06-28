@@ -11,7 +11,7 @@ export const DataSourceIdSchema = z.enum([
   'noaa_tides',
   'google_earth_engine',
   'manual_input',
-  'modular_endpoint',
+  'mojo_kernel',
 ])
 export type DataSourceId = z.infer<typeof DataSourceIdSchema>
 

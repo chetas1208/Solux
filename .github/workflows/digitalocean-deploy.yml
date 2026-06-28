@@ -1,8 +1,8 @@
 name: Deploy to DigitalOcean
 
+# Manual only — add DIGITALOCEAN_ACCESS_TOKEN to GitHub secrets first, then run from Actions tab.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:

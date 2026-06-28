@@ -2,10 +2,11 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { serve } from '@hono/node-server'
-import { serverConfig } from '@solux/config'
-import { getDataSourceStatuses } from './data/dataRegistry.js'
+import { env } from './config/env.js'
 import { projectsRouter } from './routes/projects.js'
 import { sitesRouter } from './routes/sites.js'
+import { reportsRouter } from './routes/reports.js'
+import { dataSourcesRouter } from './routes/dataSources.js'
 
 const app = new Hono()
 
@@ -13,47 +14,36 @@ app.use('*', logger())
 app.use(
   '*',
   cors({
-    origin: serverConfig.corsOrigin,
+    origin: env.CORS_ORIGIN,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
   }),
 )
 
-// Health check
-app.get('/health', (c) => {
-  return c.json({
+app.get('/health', (c) =>
+  c.json({
     status: 'ok',
     version: '0.1.0',
     timestamp: new Date().toISOString(),
-    environment: serverConfig.nodeEnv,
-  })
-})
+    environment: env.NODE_ENV,
+  }),
+)
 
-// Data source status
-app.get('/v1/data-sources', (c) => {
-  return c.json({ data: getDataSourceStatuses() })
-})
-
-// Routers
 app.route('/v1/projects', projectsRouter)
 app.route('/v1/sites', sitesRouter)
+app.route('/v1/reports', reportsRouter)
+app.route('/v1/data-sources', dataSourcesRouter)
 
-// 404
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
-
-// Error handler
 app.onError((err, c) => {
   console.error('[API Error]', err)
-  return c.json({ error: 'Internal server error', detail: err.message }, 500)
+  return c.json({ error: 'Internal server error', detail: (err as Error).message }, 500)
 })
 
-const port = serverConfig.port
-console.log(`Solux API starting on http://${serverConfig.host}:${port}`)
+const port = env.PORT
+const host = env.API_HOST
+console.log(`Solux API starting on http://${host}:${port}`)
 
-serve({
-  fetch: app.fetch,
-  port,
-  hostname: serverConfig.host,
-})
+serve({ fetch: app.fetch, port, hostname: host })
 
 export default app

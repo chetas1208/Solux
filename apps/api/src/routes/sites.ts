@@ -1,15 +1,16 @@
 import { Hono } from 'hono'
 import { getSite, getScoreBreakdown, getFatalFlawDecision } from '../db/repositories/sites.js'
-import { getEvidenceForSite, getAgentTraces } from '../db/repositories/evidence.js'
-import { ReportGenerator } from '../agent/reportGenerator.js'
-import { MiniMaxClient } from '../agent/minimaxClient.js'
-import { checkReportClaims } from '../agent/evidenceGuard.js'
-import { saveFatalFlawDecision, saveScoreBreakdown } from '../db/repositories/sites.js'
-import { saveAgentTrace } from '../db/repositories/evidence.js'
+import { getEvidenceForSite } from '../db/repositories/evidence.js'
+import { saveAgentTrace } from '../db/repositories/agentTraceRepo.js'
+import { saveReport, getReport } from '../db/repositories/reportsRepo.js'
+import { generateGroundedReport } from '../agent/generateGroundedReport.js'
+import { verifyReportClaims } from '../agent/verifyReportClaims.js'
+import { GeminiClient } from '../agent/geminiClient.js'
+import { MiniMaxClient } from '../minimax/minimaxClient.js'
+import { generateVoiceBriefing } from '../minimax/generateVoiceBriefing.js'
 
 export const sitesRouter = new Hono()
 
-/** GET /v1/sites/:id */
 sitesRouter.get('/:id', async (c) => {
   const id = c.req.param('id')
   const site = await getSite(id)
@@ -18,90 +19,104 @@ sitesRouter.get('/:id', async (c) => {
   return c.json({ data: { site, scoreBreakdown: score } })
 })
 
-/** GET /v1/sites/:id/report — generate or retrieve fatal-flaw report */
+sitesRouter.get('/:id/evidence', async (c) => {
+  const id = c.req.param('id')
+  const evidence = await getEvidenceForSite(id)
+  return c.json({ data: evidence })
+})
+
 sitesRouter.get('/:id/report', async (c) => {
   const id = c.req.param('id')
   const site = await getSite(id)
   if (!site) return c.json({ error: 'Site not found' }, 404)
 
+  const score = await getScoreBreakdown(id)
+  if (!score) return c.json({ error: 'Site not scored yet' }, 404)
+
   const decision = await getFatalFlawDecision(id)
-  if (!decision) return c.json({ error: 'Site has not been scored yet' }, 404)
+  if (!decision) return c.json({ error: 'Site not scored yet' }, 404)
+
+  // Return cached report if exists
+  const existingReport = await getReport(id)
+  if (existingReport) {
+    return c.json({ data: { report: existingReport, cached: true } })
+  }
+
+  if (!GeminiClient.isAvailable()) {
+    return c.json(
+      { error: 'Gemini not configured', detail: 'Set GEMINI_API_KEY to generate AI reports' },
+      503,
+    )
+  }
 
   const evidence = await getEvidenceForSite(id)
 
-  // Generate AI report if Gemini is available
-  let aiReport = null
-  let guardResult = null
-
-  if (ReportGenerator && process.env['GEMINI_API_KEY']) {
-    try {
-      const generator = new ReportGenerator()
-      const { report, trace } = await generator.generateSiteReport(
-        site,
-        decision,
-        evidence,
-        site.projectId,
-      )
-      await saveAgentTrace(trace)
-
-      // Evidence guard
-      const allText = [
-        report.executiveSummary,
-        ...report.keyFindings,
-        ...report.recommendedNextSteps,
-      ].join(' ')
-      guardResult = checkReportClaims(allText, evidence)
-
-      // Update hallucination fraction on decision
-      const updatedDecision = { ...decision, unsupportedClaimFraction: guardResult.unsupportedClaimFraction }
-      await saveFatalFlawDecision(updatedDecision)
-
-      aiReport = { ...report, guardResult }
-    } catch (err) {
-      aiReport = null
-    }
-  }
-
-  return c.json({
-    data: {
-      site,
-      decision,
+  try {
+    const { report, trace } = await generateGroundedReport(
+      {
+        id: site.id,
+        name: site.name,
+        siteType: site.siteType,
+        country: site.country,
+        areaKm2: site.areaKm2,
+        centroid: site.centroid.coordinates as [number, number],
+      },
+      { ...score, usedMojoKernel: false },
+      decision.killTriggers ?? [],
       evidence,
-      aiReport,
-      miniMaxAvailable: MiniMaxClient.isAvailable(),
-    },
-  })
+      site.projectId,
+    )
+
+    // Second-pass verification with report model
+    const verified = await verifyReportClaims(report, evidence)
+    const finalReport = {
+      ...report,
+      claimVerification: verified,
+      hallucinationScore: verified.hallucinationScore,
+    }
+
+    await saveReport(finalReport)
+    await saveAgentTrace(trace)
+
+    return c.json({ data: { report: finalReport, cached: false } })
+  } catch (err) {
+    return c.json({ error: 'Report generation failed', detail: String(err) }, 500)
+  }
 })
 
-/** POST /v1/sites/:id/report/briefing — generate MiniMax spoken briefing */
 sitesRouter.post('/:id/report/briefing', async (c) => {
   const id = c.req.param('id')
+
+  const report = await getReport(id)
+  if (!report) {
+    return c.json(
+      { error: 'Report not found', detail: 'Call GET /v1/sites/:id/report first' },
+      404,
+    )
+  }
+
+  const result = await generateVoiceBriefing(report)
 
   if (!MiniMaxClient.isAvailable()) {
     return c.json(
       {
         error: 'MiniMax not configured',
-        detail: 'Set MINIMAX_API_KEY and MINIMAX_GROUP_ID in .env',
+        detail: result.skippedReason,
+        miniMaxAvailable: false,
       },
       503,
     )
   }
 
-  const decision = await getFatalFlawDecision(id)
-  if (!decision) return c.json({ error: 'Site not scored yet' }, 404)
-
-  const client = new MiniMaxClient()
-  try {
-    const result = await client.generateBriefing(decision, decision.summary)
-    return c.json({ data: result })
-  } catch (err) {
-    return c.json({ error: 'MiniMax briefing failed', detail: String(err) }, 500)
+  if (result.skippedReason) {
+    return c.json({ error: 'Briefing generation failed', detail: result.skippedReason }, 500)
   }
-})
 
-/** GET /v1/sites/:id/evidence */
-sitesRouter.get('/:id/evidence', async (c) => {
-  const id = c.req.param('id')
-  const evidence = await getEvidenceForSite(id)
-  return c.json({ data: evidence })
+  return c.json({
+    data: {
+      audioUrl: result.audioUrl,
+      durationSec: result.durationSec,
+      miniMaxAvailable: true,
+    },
+  })
 })

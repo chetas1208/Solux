@@ -1,92 +1,50 @@
-import type { EvidenceItem } from '@solux/shared'
+import type { EvidenceItem } from './schemas.js'
+import { scoreHallucination } from './hallucinationScorer.js'
 
 export interface GuardResult {
   passed: boolean
-  unsupportedClaimFraction: number
+  hallucinationScore: number
   unsupportedClaims: string[]
-  supportedClaims: string[]
   totalClaims: number
+  /** Text with unsupported numeric claims redacted. */
+  sanitizedText: string
 }
 
 /**
- * Checks report claims against retrieved evidence.
- * Rejects numeric claims that cannot be traced to an evidence item.
- *
- * Heuristic: extract numeric values and named locations from text,
- * check each against evidence values and descriptions.
+ * Checks a generated text block against retrieved evidence.
+ * Redacts unsupported numeric claims in sanitizedText.
+ * Fails if hallucinationScore ≥ 0.30 (>30% claims unsupported).
  */
-export function checkReportClaims(
-  reportText: string,
-  evidence: EvidenceItem[],
-): GuardResult {
-  const claims = extractClaims(reportText)
-  const supported: string[] = []
-  const unsupported: string[] = []
+export function runEvidenceGuard(text: string, evidence: EvidenceItem[]): GuardResult {
+  const result = scoreHallucination(text, evidence)
 
-  for (const claim of claims) {
-    if (isClaimSupported(claim, evidence)) {
-      supported.push(claim)
-    } else {
-      unsupported.push(claim)
+  // Build sanitized version: redact unsupported claims
+  let sanitized = text
+  for (const claim of result.claims) {
+    if (!claim.supported) {
+      sanitized = sanitized.replace(claim.text, `[DATA UNVERIFIED: ${claim.text}]`)
     }
   }
-
-  const total = claims.length
-  const unsupportedFraction = total === 0 ? 0 : unsupported.length / total
 
   return {
-    passed: unsupportedFraction < 0.3, // fail if > 30% claims unsupported
-    unsupportedClaimFraction: unsupportedFraction,
-    unsupportedClaims: unsupported,
-    supportedClaims: supported,
-    totalClaims: total,
+    passed: result.passed,
+    hallucinationScore: result.hallucinationScore,
+    unsupportedClaims: result.claims.filter((c) => !c.supported).map((c) => c.text),
+    totalClaims: result.totalClaims,
+    sanitizedText: sanitized,
   }
 }
 
-/** Extracts checkable claim fragments from report text. */
-function extractClaims(text: string): string[] {
-  const claims: string[] = []
 
-  // Numeric claims with units (e.g. "5.2 kWh/m²/day", "12 km", "33 kV")
-  const numericPattern =
-    /(\d+(?:\.\d+)?)\s*(kWh\/m²\/day|kWh\/m2\/day|km|kV|MW|MWh|m\/s|meters|m\b|%)/gi
-  let match: RegExpExecArray | null
-  while ((match = numericPattern.exec(text)) !== null) {
-    claims.push(`${match[1]} ${match[2]}`)
+/** Backward-compat alias for tests and old callers. */
+export function checkReportClaims(
+  text: string,
+  evidence: EvidenceItem[],
+): { passed: boolean; unsupportedClaimFraction: number; totalClaims: number } {
+  const g = runEvidenceGuard(text, evidence)
+  return {
+    passed: g.passed,
+    unsupportedClaimFraction: g.hallucinationScore,
+    totalClaims: g.totalClaims,
   }
-
-  return claims
-}
-
-/** Checks if a claim fragment appears in the evidence. */
-function isClaimSupported(claim: string, evidence: EvidenceItem[]): boolean {
-  const claimLower = claim.toLowerCase()
-
-  for (const ev of evidence) {
-    const valueStr = JSON.stringify(ev.value).toLowerCase()
-    const descStr = ev.description.toLowerCase()
-    const metaStr = JSON.stringify(ev.metadata ?? {}).toLowerCase()
-
-    if (valueStr.includes(claimLower) || descStr.includes(claimLower) || metaStr.includes(claimLower)) {
-      return true
-    }
-
-    // Numeric tolerance check: extract number from claim and compare with evidence values
-    const claimNum = parseFloat(claim)
-    if (!isNaN(claimNum)) {
-      const evidenceNums = extractNumbers(valueStr)
-      for (const evNum of evidenceNums) {
-        if (Math.abs(claimNum - evNum) / Math.max(Math.abs(claimNum), 1) < 0.15) {
-          return true
-        }
-      }
-    }
-  }
-
-  return false
-}
-
-function extractNumbers(str: string): number[] {
-  const matches = str.match(/\d+(?:\.\d+)?/g) ?? []
-  return matches.map(Number)
 }
