@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "name": "Solux Site Screening Dataset",
+  "label": "v0.1",
+  "createdAt": "2026-06-28T00:00:00Z",
+  "countries": ["USA", "INDIA"],
+  "description": "Curated multi-layer dataset for fatal-flaw solar and solar-plus-storage site screening. Not a permitting or construction dataset.",
+  "h3ResLand": 7,
+  "h3ResWater": 7,
+  "uploadPath": "datasets/solux-site-screening/v0.1/",
+  "schemaVersion": 1
+}

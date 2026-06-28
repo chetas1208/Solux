@@ -7,9 +7,11 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "turbo run dev --parallel",
-    "build": "pnpm --filter @solux/api^... build",
-    "start": "pnpm --filter @solux/api start",
+    "dev": "pnpm --filter @solux/web dev",
+    "dev:all": "turbo run dev --parallel",
+    "dev:api": "pnpm --filter @solux/api dev",
+    "build": "pnpm --filter @solux/web build",
+    "start": "pnpm --filter @solux/web start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

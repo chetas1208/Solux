@@ -20,6 +20,7 @@ COPY --from=deps /app/apps ./apps
 COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
+COPY apps/api ./apps/api
 RUN pnpm --filter @solux/web build
 
 FROM node:22-alpine AS runner

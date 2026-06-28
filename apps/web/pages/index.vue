@@ -1,94 +1,61 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-const { createProject } = useApi()
-
-const prompt = ref('')
-const loading = ref(false)
-const error = ref<string | null>(null)
-
-const EXAMPLES = [
-  'Screen Gujarat and Rajasthan for 100 MW solar + 50 MW storage sites. Avoid dense vegetation. Prioritize grid access and low dust loss. Include shallow coastal and reservoir options if feasible.',
-  'Find 50 MW floating solar candidates in Karnataka reservoirs. Maximum 2.5 m water depth. Must be within 15 km of a 66 kV+ line.',
-  'Identify utility-scale solar sites in Nevada for 200 MW. Avoid protected desert areas. Require road access within 5 km.',
-]
-
-async function submit() {
-  if (!prompt.value.trim() || loading.value) return
-  loading.value = true
-  error.value = null
-  try {
-    const brief = await createProject(prompt.value.trim())
-    await router.push(`/projects/${brief.id}`)
-  } catch (err) {
-    error.value = String(err)
-  } finally {
-    loading.value = false
-  }
-}
-
-function useExample(ex: string) {
-  prompt.value = ex
-}
+definePageMeta({ commandTitle: 'Home' })
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-6 py-20">
-    <div class="mb-12">
-      <h1 class="text-4xl font-bold text-slate-100 mb-3">
-        Fatal-flaw screening for<br />
-        <span class="text-solar">solar site selection</span>
+  <div>
+    <section class="px-6 py-16 lg:py-24 max-w-5xl mx-auto">
+      <p class="text-xs uppercase tracking-widest text-zinc-500 mb-4">Solux</p>
+      <h1 class="text-3xl lg:text-4xl font-semibold text-zinc-100 tracking-tight max-w-2xl">
+        Kill bad solar sites before they kill your budget.
       </h1>
-      <p class="text-slate-400 text-sm leading-relaxed max-w-xl">
-        Describe your project in plain English. Solux retrieves real solar, grid, and terrain data,
-        generates candidate sites, and returns
-        <span class="text-green-400 font-semibold">GO</span> /
-        <span class="text-amber-400 font-semibold">INVESTIGATE</span> /
-        <span class="text-red-400 font-semibold">KILL</span>
-        decisions grounded in retrieved evidence — not invented claims.
+      <p class="text-zinc-500 mt-4 max-w-xl text-sm leading-relaxed">
+        Evidence-backed fatal-flaw screening for solar and storage sites across land and water.
+        Solar across land and water — useful output, not just sunlight.
       </p>
-    </div>
-
-    <div class="panel p-4 mb-6">
-      <div class="panel-header mb-3">Project requirement</div>
-      <textarea
-        v-model="prompt"
-        rows="5"
-        placeholder="E.g. Screen Gujarat and Rajasthan for 100 MW solar + 50 MW storage..."
-        class="w-full bg-transparent text-slate-200 text-sm placeholder-slate-600 resize-none outline-none leading-relaxed"
-        :disabled="loading"
-        @keydown.ctrl.enter="submit"
-      />
-      <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
-        <span class="text-xs text-slate-600">Ctrl+Enter to submit</span>
-        <button
-          :disabled="!prompt.trim() || loading"
-          class="px-4 py-2 bg-solar text-slate-900 text-sm font-semibold rounded disabled:opacity-40 hover:bg-amber-400 transition-colors"
-          @click="submit"
-        >
-          {{ loading ? 'Creating project...' : 'Screen Sites' }}
-        </button>
+      <div class="flex flex-wrap gap-3 mt-8">
+        <NuxtLink to="/projects">
+          <UiButton variant="primary" size="lg">Create screening project</UiButton>
+        </NuxtLink>
+        <NuxtLink to="/status">
+          <UiButton variant="default" size="lg">View system readiness</UiButton>
+        </NuxtLink>
       </div>
-    </div>
+    </section>
 
-    <div v-if="error" class="bg-red-500/10 border border-red-500/30 rounded p-3 text-red-400 text-sm mb-6">
-      {{ error }}
-    </div>
+    <section class="px-6 pb-12 max-w-5xl mx-auto grid md:grid-cols-3 gap-4">
+      <UiCard class="p-4">
+        <h3 class="text-sm font-semibold text-zinc-200">Useful output, not just sunlight</h3>
+        <p class="text-xs text-zinc-500 mt-2 leading-relaxed">
+          Solux retrieves real grid, terrain, and irradiance data — then flags fatal flaws before you commit capital.
+        </p>
+      </UiCard>
+      <UiCard class="p-4">
+        <h3 class="text-sm font-semibold text-zinc-200">GO / INVESTIGATE / KILL decisions</h3>
+        <p class="text-xs text-zinc-500 mt-2 leading-relaxed">
+          Every candidate gets an evidence-backed decision — not a vanity irradiance score.
+        </p>
+      </UiCard>
+      <UiCard class="p-4">
+        <h3 class="text-sm font-semibold text-zinc-200">Missing data lowers confidence</h3>
+        <p class="text-xs text-zinc-500 mt-2 leading-relaxed">
+          Unavailable sources are surfaced honestly. Confidence drops when layers are missing — never hidden.
+        </p>
+      </UiCard>
+    </section>
 
-    <div class="space-y-2">
-      <div class="text-xs text-slate-600 uppercase tracking-widest mb-2">Examples</div>
-      <button
-        v-for="ex in EXAMPLES"
-        :key="ex"
-        class="block w-full text-left text-xs text-slate-500 hover:text-slate-300 border border-slate-800 hover:border-slate-600 rounded p-3 transition-all"
-        @click="useExample(ex)"
-      >
-        {{ ex }}
-      </button>
-    </div>
+    <section class="px-6 pb-16 max-w-5xl mx-auto">
+      <div class="solux-panel px-4 py-3 flex flex-wrap items-center justify-center gap-2 text-xs text-zinc-500">
+        <span class="text-zinc-400">Prompt</span><span>→</span>
+        <span class="text-zinc-400">Evidence</span><span>→</span>
+        <span class="text-zinc-400">Scoring</span><span>→</span>
+        <span class="text-zinc-400">Decision</span><span>→</span>
+        <span class="text-zinc-400">Report</span>
+      </div>
+    </section>
 
-    <DataSourceStatus class="mt-12" />
+    <section class="px-6 pb-20 max-w-3xl mx-auto">
+      <ProjectPromptBox />
+    </section>
   </div>
 </template>

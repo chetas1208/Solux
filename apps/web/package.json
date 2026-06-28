@@ -4,29 +4,38 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev",
-    "build": "nuxt build",
+    "dev": "NODE_OPTIONS='--experimental-require-module' nuxt dev",
+    "build": "NODE_OPTIONS='--experimental-require-module' nuxt build",
     "start": "node .output/server/index.mjs",
     "typecheck": "nuxt typecheck",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@solux/api": "workspace:*",
     "@solux/shared": "workspace:*",
-    "nuxt": "^3.13.0",
-    "vue": "^3.5.0",
-    "vue-router": "^4.4.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "echarts": "^5.6.0",
     "maplibre-gl": "^4.7.0",
-    "zod": "^3.23.0"
+    "nuxt": "^4.4.8",
+    "pinia": "^3.0.3",
+    "radix-vue": "^1.9.17",
+    "tailwind-merge": "^3.3.1",
+    "vue": "^3.5.13",
+    "vue-echarts": "^7.0.3",
+    "vue-router": "^4.5.0",
+    "zod": "^3.24.0",
+    "oxc-parser": "0.133.0"
   },
   "devDependencies": {
-    "@nuxt/ui": "^2.18.0",
-    "@nuxtjs/tailwindcss": "^6.12.0",
-    "@tailwindcss/aspect-ratio": "^0.4.2",
-    "@tailwindcss/container-queries": "^0.1.1",
+    "@pinia/nuxt": "^0.11.2",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.0.0",
-    "tailwindcss": "^3.4.0",
-    "typescript": "^5.5.0"
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.0"
   }
 }

@@ -4,56 +4,87 @@
 
 @layer base {
   :root {
-    --color-bg-primary: #0f172a;
-    --color-bg-secondary: #1e293b;
-    --color-bg-tertiary: #334155;
-    --color-text-primary: #f1f5f9;
-    --color-text-secondary: #94a3b8;
-    --color-solar: #f59e0b;
-    --color-go: #22c55e;
-    --color-investigate: #f59e0b;
-    --color-kill: #ef4444;
-    --color-water: #3b82f6;
-    --color-grid: #8b5cf6;
+    --bg-primary: #09090b;
+    --bg-secondary: #18181b;
+    --bg-tertiary: #27272a;
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --border-default: #3f3f46;
   }
 
-  html, body {
-    @apply bg-slate-900 text-slate-100 font-mono;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  html,
+  body {
+    @apply bg-surface text-zinc-100 font-sans antialiased;
   }
 
   * {
-    @apply border-slate-700;
+    @apply border-surface-border;
   }
 }
 
 @layer components {
+  .solux-panel {
+    @apply bg-surface-raised border border-surface-border rounded-md;
+  }
+
+  .solux-panel-header {
+    @apply px-4 py-2.5 border-b border-surface-border text-[11px] font-semibold uppercase tracking-wider text-zinc-400;
+  }
+
   .decision-go {
-    @apply bg-green-500/10 border border-green-500/30 text-green-400;
+    @apply bg-decision-go-muted border border-decision-go/30 text-decision-go;
   }
+
   .decision-investigate {
-    @apply bg-amber-500/10 border border-amber-500/30 text-amber-400;
+    @apply bg-decision-investigate-muted border border-decision-investigate/30 text-decision-investigate;
   }
+
   .decision-kill {
-    @apply bg-red-500/10 border border-red-500/30 text-red-400;
+    @apply bg-decision-kill-muted border border-decision-kill/30 text-decision-kill;
+  }
+
+  .status-ready {
+    @apply text-status-ready;
+  }
+
+  .status-degraded {
+    @apply text-status-degraded;
+  }
+
+  .status-unavailable {
+    @apply text-status-unavailable;
+  }
+
+  .status-not-configured {
+    @apply text-status-not-configured;
+  }
+
+  .confidence-high {
+    @apply text-confidence-high;
+  }
+
+  .confidence-medium {
+    @apply text-confidence-medium;
+  }
+
+  .confidence-low {
+    @apply text-confidence-low;
+  }
+
+  .data-degraded {
+    @apply bg-zinc-800/60 border border-dashed border-zinc-600 text-zinc-400 text-xs rounded px-2.5 py-1.5;
   }
 
   .score-bar {
-    @apply h-1.5 rounded-full bg-slate-700;
+    @apply h-1 rounded-full bg-zinc-800;
   }
+
   .score-bar-fill {
     @apply h-full rounded-full transition-all duration-300;
   }
 
-  .panel {
-    @apply bg-slate-800/80 border border-slate-700 rounded-lg;
-  }
-
-  .panel-header {
-    @apply px-4 py-3 border-b border-slate-700 text-xs font-semibold uppercase tracking-widest text-slate-400;
-  }
-
-  .data-missing {
-    @apply bg-slate-700/50 border border-dashed border-slate-600 text-slate-500 text-xs rounded px-2 py-1;
+  .command-bar {
+    @apply bg-surface-raised border-b border-surface-border;
   }
 }

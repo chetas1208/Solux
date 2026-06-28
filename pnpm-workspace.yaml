@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'ops/data-pipeline'
 
 # pnpm 9 (Docker / buildpack when engines pin 9.x)
 onlyBuiltDependencies:

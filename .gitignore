@@ -11,5 +11,15 @@ coverage/
 .env.*.local
 .do/app.local.yaml
 data/generated/
+data/datasets/**/*.tif
+data/datasets/**/*.tiff
+data/datasets/**/*.zip
+data/datasets/**/*.shp
+data/datasets/**/*.dbf
+data/datasets/**/*.shx
+data/datasets/**/*.prj
+data/datasets/**/*.sbn
+data/datasets/**/*.sbx
+data/datasets/**/*.xml
 ops/model-cache/*.bin
 ops/model-cache/*.gguf

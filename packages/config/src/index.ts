@@ -11,39 +11,81 @@ function requireEnv(key: string): string {
 }
 
 export const serverConfig = {
-  port: parseInt(env('API_PORT') ?? env('PORT') ?? '3001', 10),
-  host: env('API_HOST') ?? '0.0.0.0',
-  corsOrigin: env('CORS_ORIGIN') ?? 'http://localhost:3000',
-  nodeEnv: (env('NODE_ENV') ?? 'development') as 'development' | 'production' | 'test',
+  get port() {
+    return parseInt(env('API_PORT') ?? env('PORT') ?? '3001', 10)
+  },
+  get host() {
+    return env('API_HOST') ?? '0.0.0.0'
+  },
+  get corsOrigin() {
+    return env('CORS_ORIGIN') ?? 'http://localhost:3000'
+  },
+  get nodeEnv() {
+    return (env('NODE_ENV') ?? 'development') as 'development' | 'production' | 'test'
+  },
 }
 
 export const dbConfig = {
-  uri: env('MONGODB_URI') ?? '',
-  dbName: env('MONGODB_DB') ?? 'solux',
+  get uri() {
+    return env('MONGODB_URI') ?? ''
+  },
+  get dbName() {
+    return env('MONGODB_DB') ?? 'solux'
+  },
 }
 
 export const aiConfig = {
-  geminiApiKey: env('GEMINI_API_KEY') ?? '',
-  minimaxApiKey: env('MINIMAX_API_KEY') ?? '',
-  minimaxGroupId: env('MINIMAX_GROUP_ID') ?? '',
-  modularEndpoint: env('MODULAR_MODEL_ENDPOINT') ?? '',
+  get geminiApiKey() {
+    return env('GEMINI_API_KEY') ?? ''
+  },
+  get minimaxApiKey() {
+    return env('MINIMAX_API_KEY') ?? ''
+  },
+  get minimaxGroupId() {
+    return env('MINIMAX_GROUP_ID') ?? ''
+  },
+  get modularEndpoint() {
+    return env('MODULAR_MODEL_ENDPOINT') ?? ''
+  },
 }
 
 export const dataConfig = {
-  nrelApiKey: env('NREL_API_KEY') ?? '',
-  pvgisBaseUrl: env('PVGIS_BASE_URL') ?? 'https://re.jrc.ec.europa.eu/api/v5_2',
-  globalSolarAtlasDataDir: env('GLOBAL_SOLAR_ATLAS_DATA_DIR') ?? '',
-  uspvdbDataDir: env('USPVDB_DATA_DIR') ?? '',
-  gebcoDataDir: env('GEBCO_DATA_DIR') ?? '',
-  copernicusMarineConfig: env('COPERNICUS_MARINE_CONFIG') ?? '',
-  googleMapsApiKey: env('GOOGLE_MAPS_API_KEY') ?? '',
+  get nrelApiKey() {
+    return env('NREL_API_KEY') ?? ''
+  },
+  get pvgisBaseUrl() {
+    return env('PVGIS_BASE_URL') ?? 'https://re.jrc.ec.europa.eu/api/v5_2'
+  },
+  get globalSolarAtlasDataDir() {
+    return env('GLOBAL_SOLAR_ATLAS_DATA_DIR') ?? ''
+  },
+  get uspvdbDataDir() {
+    return env('USPVDB_DATA_DIR') ?? ''
+  },
+  get gebcoDataDir() {
+    return env('GEBCO_DATA_DIR') ?? ''
+  },
+  get copernicusMarineConfig() {
+    return env('COPERNICUS_MARINE_CONFIG') ?? ''
+  },
+  get googleMapsApiKey() {
+    return env('GOOGLE_MAPS_API_KEY') ?? ''
+  },
 }
 
 export const spacesConfig = {
-  endpoint: env('DIGITALOCEAN_SPACES_ENDPOINT') ?? '',
-  bucket: env('DIGITALOCEAN_SPACES_BUCKET') ?? 'solux-reports',
-  key: env('DIGITALOCEAN_SPACES_KEY') ?? '',
-  secret: env('DIGITALOCEAN_SPACES_SECRET') ?? '',
+  get endpoint() {
+    return env('DIGITALOCEAN_SPACES_ENDPOINT') ?? ''
+  },
+  get bucket() {
+    return env('DIGITALOCEAN_SPACES_BUCKET') ?? 'solux-reports'
+  },
+  get key() {
+    return env('DIGITALOCEAN_SPACES_KEY') ?? ''
+  },
+  get secret() {
+    return env('DIGITALOCEAN_SPACES_SECRET') ?? ''
+  },
 }
 
 /** Returns whether each data source is configured. */

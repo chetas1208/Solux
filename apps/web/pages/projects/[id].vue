@@ -1,158 +1,133 @@
 <script setup lang="ts">
-import type { ProjectBrief, ProjectSpec, CandidateSite, ScoreBreakdown, FatalFlawDecision } from '@solux/shared'
+import type { ProjectBrief, ProjectSpec } from '~/types/api'
+
+definePageMeta({ commandTitle: 'Project workspace' })
 
 const route = useRoute()
-const id = route.params['id'] as string
-const { getProject, parsePrompt, runScreening, getProjectSites } = useApi()
+const projectId = route.params.id as string
 
-const state = ref<'loading' | 'brief' | 'parsing' | 'spec' | 'screening' | 'results' | 'error'>('loading')
+const api = useApiClient()
+const { parsePrompt, loading: parsing, error: parseError, spec: parsedSpec } = useProjectPrompt()
+const { state: screeningState, sites, result, warnings, error: screeningError, startScreening, loadSites } = useScreening()
+const { fetchSources, sources } = useDataSources()
+
 const brief = ref<ProjectBrief | null>(null)
 const spec = ref<ProjectSpec | null>(null)
-const sites = ref<Array<CandidateSite & { scoreBreakdown: ScoreBreakdown | null }>>([])
-const errors = ref<string[]>([])
-const errorMsg = ref<string | null>(null)
+const loadError = ref<string | null>(null)
+const selectedSiteId = ref<string | undefined>()
+
+const { layers, toggleLayer } = useMapLayers(sources)
 
 onMounted(async () => {
+  await fetchSources(false)
   try {
-    const data = await getProject(id)
+    const data = await api.getProject(projectId)
     brief.value = data.brief
     spec.value = data.spec
-    if (data.spec) {
-      state.value = 'spec'
-      // Auto-load sites if already screened
-      try {
-        const s = await getProjectSites(id)
-        if (s.length) {
-          sites.value = s
-          state.value = 'results'
-        }
-      } catch {}
-    } else {
-      state.value = 'brief'
-    }
+    await loadSites(projectId)
   } catch (err) {
-    errorMsg.value = String(err)
-    state.value = 'error'
+    loadError.value = String(err)
   }
 })
 
-async function doParse() {
-  state.value = 'parsing'
-  try {
-    const result = await parsePrompt(id)
-    spec.value = result.spec
-    state.value = 'spec'
-  } catch (err) {
-    errorMsg.value = String(err)
-    state.value = 'error'
-  }
+watch(parsedSpec, (v) => { if (v) spec.value = v })
+
+const avgConfidence = computed(() => {
+  const scored = sites.value.filter((s) => s.scoreBreakdown)
+  if (!scored.length) return null
+  return Math.round(scored.reduce((a, s) => a + (s.scoreBreakdown?.confidence ?? 0), 0) / scored.length)
+})
+
+const dataCoverage = computed(() => {
+  const avail = sources.value.filter((s) => s.available).length
+  return sources.value.length ? `${avail}/${sources.value.length} sources ready` : undefined
+})
+
+async function handleParse() {
+  await parsePrompt(projectId)
 }
 
-async function doScreen() {
-  state.value = 'screening'
-  try {
-    const result = await runScreening(id)
-    errors.value = result.errors
-    const s = await getProjectSites(id)
-    sites.value = s
-    state.value = 'results'
-  } catch (err) {
-    errorMsg.value = String(err)
-    state.value = 'error'
-  }
+async function handleScreen() {
+  await startScreening(projectId)
 }
 
-function decisionClass(d: string) {
-  if (d === 'GO') return 'decision-go'
-  if (d === 'INVESTIGATE') return 'decision-investigate'
-  return 'decision-kill'
-}
+const selectedSite = computed(() => sites.value.find((s) => s.id === selectedSiteId.value) ?? null)
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
-    <!-- Breadcrumb -->
-    <div class="text-xs text-slate-600 mb-6">
-      <NuxtLink to="/projects" class="hover:text-slate-400">Projects</NuxtLink>
-      <span class="mx-2">/</span>
-      <span class="text-slate-400">{{ id.slice(0, 8) }}</span>
-    </div>
+  <div class="flex flex-col h-[calc(100vh-2.75rem)]">
+    <LayoutErrorState v-if="loadError" class="m-4" :message="loadError" />
 
-    <!-- Loading -->
-    <div v-if="state === 'loading'" class="text-slate-500 text-sm">Loading project...</div>
+    <template v-else>
+      <ProjectProjectHeader
+        :brief="brief"
+        :spec="spec"
+        :run-state="screeningState"
+        :confidence-summary="avgConfidence"
+        :data-coverage="dataCoverage"
+      />
 
-    <!-- Error -->
-    <div v-else-if="state === 'error'" class="text-red-400 text-sm">{{ errorMsg }}</div>
+      <LayoutSplitPane left-width="260px" right-width="300px" class="flex-1 min-h-0">
+        <template #left>
+          <div class="p-3 space-y-3">
+            <UiCard v-if="brief && !spec">
+              <div class="solux-panel-header">Requirement</div>
+              <p class="p-3 text-xs text-zinc-400 leading-relaxed">{{ brief.rawPrompt }}</p>
+            </UiCard>
+            <ProjectParsedConstraintReview v-if="spec" :spec="spec" />
+            <ProjectProjectRunControls
+              :can-parse="!!brief && !spec"
+              :can-screen="!!spec && screeningState !== 'completed'"
+              :parsing="parsing"
+              :screening="screeningState === 'running'"
+              @parse="handleParse"
+              @screen="handleScreen"
+            />
+            <LayoutErrorState v-if="parseError" :message="parseError" />
+            <LayoutErrorState v-if="screeningError" :message="screeningError" />
+            <div v-if="warnings.length" class="space-y-1">
+              <div v-for="w in warnings" :key="w" class="data-degraded">{{ w }}</div>
+            </div>
+            <MapLayerTogglePanel :layers="layers" @toggle="toggleLayer" />
+            <ProjectProjectDecisionSummary :result="result" />
+          </div>
+        </template>
 
-    <!-- Brief stage: prompt Gemini to parse -->
-    <div v-else-if="state === 'brief' || state === 'parsing'">
-      <div class="panel p-4 mb-6 max-w-2xl">
-        <div class="panel-header mb-3">Project Requirement</div>
-        <p class="text-sm text-slate-300 leading-relaxed">{{ brief?.rawPrompt }}</p>
-      </div>
-      <button
-        :disabled="state === 'parsing'"
-        class="px-4 py-2 bg-solar text-slate-900 text-sm font-semibold rounded disabled:opacity-40"
-        @click="doParse"
-      >
-        {{ state === 'parsing' ? 'Parsing with Gemini...' : 'Parse Requirements' }}
-      </button>
-    </div>
-
-    <!-- Spec review stage -->
-    <div v-else-if="state === 'spec' && spec">
-      <div class="grid grid-cols-2 gap-4 mb-6 max-w-2xl">
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Target Capacity</div>
-          <div class="text-sm font-semibold">{{ spec.targetCapacityMW }} MW</div>
+        <div class="flex flex-col min-h-0 flex-1 p-3 gap-3">
+          <div class="flex-1 min-h-[240px] relative">
+            <MapCandidateMap
+              :sites="sites"
+              :layers="layers"
+              :selected-id="selectedSiteId"
+              @select="selectedSiteId = $event"
+            />
+            <MapSiteHoverCard :site="selectedSite" />
+          </div>
+          <ChartsTradeoffScatter
+            v-if="sites.length >= 2"
+            :sites="sites"
+            :project-id="projectId"
+            @select="(id) => navigateTo(`/projects/${projectId}/sites/${id}`)"
+          />
         </div>
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Storage</div>
-          <div class="text-sm font-semibold">{{ spec.storageCapacityMW ? `${spec.storageCapacityMW} MW / ${spec.storageHours ?? '?'}h` : 'None' }}</div>
-        </div>
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Region</div>
-          <div class="text-sm font-semibold">{{ spec.targetRegion }}</div>
-        </div>
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Min GHI</div>
-          <div class="text-sm font-semibold">{{ spec.minGhiKwhM2Day }} kWh/m²/day</div>
-        </div>
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Max Grid Distance</div>
-          <div class="text-sm font-semibold">{{ spec.maxGridDistanceKm }} km</div>
-        </div>
-        <div class="panel p-3">
-          <div class="text-xs text-slate-500 mb-1">Site Types</div>
-          <div class="text-sm font-semibold">{{ spec.preferredSiteTypes.join(', ') }}</div>
-        </div>
-      </div>
 
-      <div v-if="spec.additionalConstraints.length" class="mb-4 text-xs text-slate-500">
-        Additional: {{ spec.additionalConstraints.join(' · ') }}
-      </div>
-
-      <button
-        class="px-4 py-2 bg-solar text-slate-900 text-sm font-semibold rounded"
-        @click="doScreen"
-      >
-        Run Site Screening
-      </button>
-    </div>
-
-    <!-- Screening in progress -->
-    <div v-else-if="state === 'screening'" class="text-slate-400 text-sm">
-      Fetching real data and scoring candidate sites...
-    </div>
-
-    <!-- Results -->
-    <div v-else-if="state === 'results'">
-      <div v-if="errors.length" class="mb-4 bg-amber-500/10 border border-amber-500/30 rounded p-3 text-amber-400 text-xs">
-        <div class="font-semibold mb-1">Data warnings ({{ errors.length }})</div>
-        <div v-for="err in errors" :key="err" class="mt-0.5">{{ err }}</div>
-      </div>
-
-      <SiteRankingPanel :sites="sites" :project-id="id" />
-    </div>
+        <template #right>
+          <SitesSiteRankingPanel
+            :sites="sites"
+            :project-id="projectId"
+            :selected-id="selectedSiteId"
+            @select="selectedSiteId = $event"
+          />
+          <div class="p-3 border-t border-surface-border flex gap-2">
+            <NuxtLink :to="`/projects/${projectId}/compare`" class="flex-1">
+              <UiButton variant="ghost" size="sm" class="w-full">Compare</UiButton>
+            </NuxtLink>
+            <NuxtLink :to="`/projects/${projectId}/evidence`" class="flex-1">
+              <UiButton variant="ghost" size="sm" class="w-full">Evidence trace</UiButton>
+            </NuxtLink>
+          </div>
+        </template>
+      </LayoutSplitPane>
+    </template>
   </div>
 </template>

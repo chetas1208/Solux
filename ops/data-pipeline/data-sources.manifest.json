@@ -1,0 +1,395 @@
+{
+  "version": "0.1.0",
+  "generatedAt": "2026-06-28T00:00:00Z",
+  "sources": [
+    {
+      "id": "geoboundaries",
+      "label": "geoBoundaries",
+      "category": "boundaries",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "api",
+      "apiUrl": "https://www.geoboundaries.org/api/current/gbOpen/{ISO3}/{LEVEL}/",
+      "rawDir": "raw/global/geoboundaries",
+      "license": "CC BY 4.0 / ODbL",
+      "licenseUrl": "https://www.geoboundaries.org/license.html",
+      "citation": "Runfola D et al. (2020) geoBoundaries: A global database of political administrative boundaries. PLOS ONE.",
+      "referenceUrls": [
+        "https://www.geoboundaries.org/",
+        "https://github.com/wmgeolab/geoBoundaries"
+      ],
+      "manualDownload": false,
+      "notes": "ADM0 + ADM1 for USA (ISO3=USA) and India (ISO3=IND). Free, no key required."
+    },
+    {
+      "id": "uspvdb",
+      "label": "USPVDB — U.S. Large-Scale Solar Photovoltaic Database",
+      "category": "solar_assets",
+      "countries": ["USA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/usa/uspvdb",
+      "license": "Public Domain (U.S. Government)",
+      "licenseUrl": "https://www.usgs.gov/information-policies-and-instructions/data-management/copyright-and-credits",
+      "citation": "Sydny Fujita et al. (2023) U.S. Large-Scale Solar Photovoltaic Database (USPVDB). U.S. Geological Survey data release.",
+      "referenceUrls": [
+        "https://energy.usgs.gov/uspvdb/",
+        "https://energy.usgs.gov/uspvdb/data/",
+        "https://energyanalysis.lbl.gov/publications/us-large-scale-solar-photovoltaic"
+      ],
+      "manualDownload": false,
+      "notes": "GeoPackage with plant-level polygons and attributes for all utility-scale PV ≥1 MW."
+    },
+    {
+      "id": "eia860",
+      "label": "EIA Form 860 — Annual Electric Generator Report",
+      "category": "solar_assets",
+      "countries": ["USA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/usa/eia860",
+      "license": "U.S. Government Open Data",
+      "licenseUrl": "https://www.eia.gov/about/copyrights_reuse.php",
+      "citation": "U.S. Energy Information Administration (EIA). Form EIA-860. Annual Electric Generator Report.",
+      "referenceUrls": [
+        "https://www.eia.gov/electricity/data/eia860/"
+      ],
+      "manualDownload": false,
+      "notes": "Generator-level attributes: capacity, fuel type, status, county. Annual zip archive."
+    },
+    {
+      "id": "eia923",
+      "label": "EIA Form 923 — Power Plant Operations Report",
+      "category": "solar_assets",
+      "countries": ["USA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/usa/eia923",
+      "license": "U.S. Government Open Data",
+      "licenseUrl": "https://www.eia.gov/about/copyrights_reuse.php",
+      "citation": "U.S. Energy Information Administration (EIA). Form EIA-923. Power Plant Operations Report.",
+      "referenceUrls": [
+        "https://www.eia.gov/electricity/data/eia923/"
+      ],
+      "manualDownload": false,
+      "notes": "Monthly and annual generation by plant and prime mover. Annual zip archive."
+    },
+    {
+      "id": "nrel_nsrdb",
+      "label": "NREL NSRDB — National Solar Radiation Database",
+      "category": "solar_resource",
+      "countries": ["USA"],
+      "downloadMethod": "api_key",
+      "envVar": "NREL_API_KEY",
+      "apiUrl": "https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-download.json",
+      "rawDir": "raw/usa/nsrdb",
+      "license": "Open Government / Attribution Required",
+      "licenseUrl": "https://www.nrel.gov/disclaimer.html",
+      "citation": "Sengupta M et al. (2018) The National Solar Radiation Data Base (NSRDB). Renewable and Sustainable Energy Reviews.",
+      "referenceUrls": [
+        "https://developer.nrel.gov/docs/solar/nsrdb/",
+        "https://developer.nrel.gov/docs/solar/nsrdb/nsrdb_data_query/"
+      ],
+      "manualDownload": false,
+      "requiresKey": true,
+      "notes": "PSM3 TMY data. Requires free API key from developer.nrel.gov/signup."
+    },
+    {
+      "id": "global_solar_atlas",
+      "label": "Global Solar Atlas — World Bank / Solargis",
+      "category": "solar_resource",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "manual",
+      "rawDir": "raw/global/global_solar_atlas",
+      "license": "CC BY 4.0 (World Bank open data)",
+      "licenseUrl": "https://datacatalog.worldbank.org/public-licenses#cc-by",
+      "citation": "World Bank / Solargis (2020) Global Solar Atlas 2.0. The World Bank Group.",
+      "referenceUrls": [
+        "https://globalsolaratlas.info/",
+        "https://datacatalog.worldbank.org/search/dataset/0038641",
+        "https://solargis.com/resources/free-maps-and-gis-data"
+      ],
+      "manualDownload": true,
+      "notes": "Download GHI, PVOUT, DNI GeoTIFF rasters manually from https://globalsolaratlas.info/download. Select World → GHI, PVOUT, DNI → download. No API for bulk GeoTIFF."
+    },
+    {
+      "id": "pvgis",
+      "label": "PVGIS — Photovoltaic Geographical Information System",
+      "category": "solar_resource",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "api",
+      "apiUrl": "https://re.jrc.ec.europa.eu/api/v5_3/PVcalc",
+      "rawDir": "raw/global/pvgis",
+      "license": "Public (European Commission JRC)",
+      "licenseUrl": "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en",
+      "citation": "Huld T et al. (2012) A new solar radiation database for estimating PV performance in Europe and Africa. Solar Energy.",
+      "referenceUrls": [
+        "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en",
+        "https://re.jrc.ec.europa.eu/pvg_tools/en/"
+      ],
+      "manualDownload": false,
+      "notes": "Point-level API. No key required. Called per-candidate during scoring."
+    },
+    {
+      "id": "nasa_power",
+      "label": "NASA POWER — Prediction Of Worldwide Energy Resources",
+      "category": "weather_atmosphere",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "api",
+      "apiUrl": "https://power.larc.nasa.gov/api/temporal/climatology/point",
+      "rawDir": "raw/global/nasa_power",
+      "license": "NASA Open Data / No restrictions",
+      "licenseUrl": "https://power.larc.nasa.gov/docs/services/terms-of-service/",
+      "citation": "Stackhouse PW et al. (2018) 18-Year Wind Energy Hindcast Study. NASA Technical Report.",
+      "referenceUrls": [
+        "https://power.larc.nasa.gov/docs/tutorials/service-data-request/api/",
+        "https://power.larc.nasa.gov/docs/services/api/temporal/climatology/"
+      ],
+      "manualDownload": false,
+      "notes": "Climatology API for temperature, humidity, cloud fraction, irradiance. No key required."
+    },
+    {
+      "id": "esa_worldcover",
+      "label": "ESA WorldCover 2021 — 10m Global Land Cover",
+      "category": "landcover",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/global/esa_worldcover",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://esa-worldcover.org/en",
+      "citation": "Zanaga D et al. (2022) ESA WorldCover 10m 2021 v200. Zenodo.",
+      "referenceUrls": [
+        "https://esa-worldcover.org/en",
+        "https://esa-worldcover.org/en/data-access",
+        "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200"
+      ],
+      "manualDownload": false,
+      "notes": "10m resolution COG GeoTIFF tiles. Direct S3 download from esa-worldcover.s3.eu-central-1.amazonaws.com. Download region tiles only when DOWNLOAD_WORLD_COVER=true."
+    },
+    {
+      "id": "copernicus_dem",
+      "label": "Copernicus DEM GLO-30",
+      "category": "terrain",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "manual",
+      "rawDir": "raw/global/copernicus_dem",
+      "license": "DLR/ESA — Attribution required. Free for scientific and commercial use.",
+      "licenseUrl": "https://spacedata.copernicus.eu/en/web/guest/collections/copernicus-digital-elevation-model",
+      "citation": "European Space Agency / Airbus (2022). Copernicus DEM GLO-30. ESA.",
+      "referenceUrls": [
+        "https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM",
+        "https://opentopography.org/meta/OT.032021.4326.1"
+      ],
+      "manualDownload": true,
+      "notes": "Register at Copernicus Data Space Ecosystem (https://dataspace.copernicus.eu) or download via OpenTopography API. Also available via AWS s3://copernicus-dem-30m/ (requester-pays). See MANUAL_DOWNLOAD_REQUIRED.md."
+    },
+    {
+      "id": "hifld_transmission",
+      "label": "HIFLD Electric Power Transmission Lines",
+      "category": "grid",
+      "countries": ["USA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/usa/hifld_transmission",
+      "license": "Public Domain (U.S. Government)",
+      "licenseUrl": "https://hifld-geoplatform.hub.arcgis.com/pages/hifld-open-disclaimer",
+      "citation": "Homeland Infrastructure Foundation-Level Data (HIFLD). Electric Power Transmission Lines. DHS/CISA.",
+      "referenceUrls": [
+        "https://catalog.data.gov/dataset/electric-power-transmission-lines",
+        "https://www.arcgis.com/home/item.html?id=d77284d1a97a426eaf960bab4764999c"
+      ],
+      "manualDownload": false,
+      "notes": "GeoJSON via ArcGIS REST API. Full USA transmission network including voltage class."
+    },
+    {
+      "id": "osm_power",
+      "label": "OpenStreetMap Power Infrastructure + Roads (Overpass API)",
+      "category": "grid",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "api",
+      "apiUrl": "https://overpass-api.de/api/interpreter",
+      "rawDir": "raw/global/osm",
+      "license": "ODbL 1.0",
+      "licenseUrl": "https://www.openstreetmap.org/copyright",
+      "citation": "OpenStreetMap contributors (2024). OpenStreetMap data.",
+      "referenceUrls": [
+        "https://wiki.openstreetmap.org/wiki/Overpass_API",
+        "https://wiki.openstreetmap.org/wiki/Power_networks",
+        "https://openinframap.org/"
+      ],
+      "manualDownload": false,
+      "notes": "Power lines, substations, roads queried per-region. Polite rate limiting applied."
+    },
+    {
+      "id": "india_niti_energy_map",
+      "label": "NITI Aayog / ISRO SAC Geospatial Energy Map of India",
+      "category": "solar_assets",
+      "countries": ["INDIA"],
+      "downloadMethod": "restricted",
+      "rawDir": "raw/india/energy_map_reference",
+      "license": "Restricted — Government of India. Not open bulk download.",
+      "licenseUrl": "https://vedas.sac.gov.in/energymap/",
+      "citation": "NITI Aayog / ISRO SAC (2022). Geospatial Energy Map of India.",
+      "referenceUrls": [
+        "https://vedas.sac.gov.in/energymap/",
+        "https://vedas.sac.gov.in/energymap/view/powergis.jsp",
+        "https://pib.gov.in/Pressreleaseshare.aspx?PRID=1764738"
+      ],
+      "manualDownload": true,
+      "notes": "Portal requires government registration. Do not scrape. Record as reference/unavailable. Use WRI GPPD + OSM as proxy for India grid/plant data."
+    },
+    {
+      "id": "india_ai_solar_dataset",
+      "label": "AI Dataset for Solar Energy Locations in India",
+      "category": "solar_assets",
+      "countries": ["INDIA"],
+      "downloadMethod": "zenodo",
+      "zenodoRecordId": "6477614",
+      "rawDir": "raw/india/solar_locations_ai_dataset",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://zenodo.org/record/6477614",
+      "citation": "Ortiz A et al. (2022) A machine learning dataset for solar energy locations in India. Scientific Data 9, 390.",
+      "referenceUrls": [
+        "https://www.nature.com/articles/s41597-022-01499-9",
+        "https://arxiv.org/abs/2202.01340",
+        "https://zenodo.org/record/6477614"
+      ],
+      "manualDownload": false,
+      "notes": "Validated India solar farm polygon dataset. Download via Zenodo API."
+    },
+    {
+      "id": "global_renewables_watch",
+      "label": "Global Renewables Watch — Microsoft Research",
+      "category": "solar_assets",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "github_release",
+      "githubRepo": "microsoft/global-renewables-watch",
+      "rawDir": "raw/global/global_renewables_watch",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://github.com/microsoft/global-renewables-watch/blob/main/LICENSE",
+      "citation": "Hanna J et al. (2025) Global Renewables Watch: A Temporal Dataset of Solar and Wind Energy Derived from Satellite Imagery. arXiv:2503.14860.",
+      "referenceUrls": [
+        "https://github.com/microsoft/global-renewables-watch",
+        "https://arxiv.org/abs/2503.14860",
+        "https://www.microsoft.com/en-us/research/publication/global-renewables-watch-a-temporal-dataset-of-solar-and-wind-energy-derived-from-satellite-imagery/"
+      ],
+      "manualDownload": false,
+      "notes": "Download GeoParquet from GitHub release assets."
+    },
+    {
+      "id": "kruitwagen_pv_inventory",
+      "label": "Global Photovoltaic Power Generating Units Inventory (Kruitwagen et al.)",
+      "category": "solar_assets",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "zenodo",
+      "zenodoRecordId": "5005868",
+      "rawDir": "raw/global/kruitwagen_pv_inventory",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://zenodo.org/record/5005868",
+      "citation": "Kruitwagen L et al. (2021) A global inventory of photovoltaic solar energy generating units. Nature 598, 604–610.",
+      "referenceUrls": [
+        "https://www.nature.com/articles/s41586-021-03957-7",
+        "https://zenodo.org/records/5005868",
+        "https://github.com/Lkruitwagen/solar-pv-global-inventory"
+      ],
+      "manualDownload": false,
+      "notes": "Global utility-scale PV polygon inventory. Download from Zenodo."
+    },
+    {
+      "id": "jrc_surface_water",
+      "label": "JRC Global Surface Water Explorer",
+      "category": "water",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/global/jrc_surface_water",
+      "license": "Free for all non-commercial purposes. Attribution required.",
+      "licenseUrl": "https://global-surface-water.appspot.com/",
+      "citation": "Pekel JF et al. (2016) High-resolution mapping of global surface water and its long-term changes. Nature 540, 418–422.",
+      "referenceUrls": [
+        "https://global-surface-water.appspot.com/",
+        "https://global-surface-water.appspot.com/download",
+        "https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_4_GlobalSurfaceWater"
+      ],
+      "manualDownload": false,
+      "notes": "Monthly water occurrence GeoTIFF tiles available from JRC FTP. Download occurrence and seasonality bands."
+    },
+    {
+      "id": "hydrolakes",
+      "label": "HydroLAKES — Global Lake and Reservoir Polygons",
+      "category": "water",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "manual",
+      "rawDir": "raw/global/hydrolakes",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.hydrosheds.org/page/hydrolakes",
+      "citation": "Messager ML et al. (2016) Estimating the volume and age of water stored in global lakes using a geo-statistical approach. Nature Communications 7, 13603.",
+      "referenceUrls": [
+        "https://www.hydrosheds.org/page/hydrolakes"
+      ],
+      "manualDownload": true,
+      "notes": "Download requires form at https://www.hydrosheds.org/page/hydrolakes → 'Download HydroLAKES'. See MANUAL_DOWNLOAD_REQUIRED.md."
+    },
+    {
+      "id": "grand",
+      "label": "GRanD — Global Reservoir and Dam Database v1.3",
+      "category": "water",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "manual",
+      "rawDir": "raw/global/grand",
+      "license": "Attribution required. Free for non-commercial research.",
+      "licenseUrl": "https://www.globaldamwatch.org/grand",
+      "citation": "Lehner B et al. (2011) High-resolution mapping of the world's reservoirs and dams for sustainable river-flow management. Frontiers in Ecology and the Environment.",
+      "referenceUrls": [
+        "https://www.earthdata.nasa.gov/data/catalog/sedac-ciesin-sedac-grandv1-dams-1.01",
+        "https://www.globaldamwatch.org/grand"
+      ],
+      "manualDownload": true,
+      "notes": "Download from NASA Earthdata (requires free Earthdata login). Shapefile of 7,320 large dams globally. See MANUAL_DOWNLOAD_REQUIRED.md."
+    },
+    {
+      "id": "gebco",
+      "label": "GEBCO 2024 Grid",
+      "category": "bathymetry",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/global/gebco",
+      "license": "Open — Attribution required",
+      "licenseUrl": "https://www.gebco.net/data_and_products/gridded_bathymetry_data/",
+      "citation": "GEBCO Compilation Group (2024) GEBCO 2024 Grid. doi:10.5285/1c44ce99-0a0d-5f4f-e063-7086abc0ea0f.",
+      "referenceUrls": [
+        "https://www.gebco.net/data_and_products/gridded_bathymetry_data/",
+        "https://www.gebco.net/data-products-gridded-bathymetry-data/gebco2026-grid"
+      ],
+      "manualDownload": false,
+      "notes": "15 arc-second global bathymetry. Direct download from GEBCO; large file (~7 GB). Only when DOWNLOAD_GEBCO=true."
+    },
+    {
+      "id": "copernicus_marine_waves",
+      "label": "Copernicus Marine Global Ocean Waves Analysis and Forecast",
+      "category": "ocean_waves",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "manual",
+      "rawDir": "raw/global/copernicus_marine_waves",
+      "license": "Copernicus Marine Service — Attribution required",
+      "licenseUrl": "https://marine.copernicus.eu/user-corner/service-commitments-and-licence",
+      "citation": "Copernicus Marine Environment Monitoring Service (2024). GLOBAL_ANALYSISFORECAST_WAV_001_027.",
+      "referenceUrls": [
+        "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_WAV_001_027/description"
+      ],
+      "manualDownload": true,
+      "notes": "Requires free Copernicus Marine account. Use copernicusmarine CLI: `copernicusmarine get -i cmems_mod_glo_wav_anfc_0.083deg_PT3H-i`. Only when DOWNLOAD_COPERNICUS_MARINE=true. See MANUAL_DOWNLOAD_REQUIRED.md."
+    },
+    {
+      "id": "wri_gppd",
+      "label": "WRI Global Power Plant Database",
+      "category": "solar_assets",
+      "countries": ["USA", "INDIA"],
+      "downloadMethod": "direct",
+      "rawDir": "raw/global/wri_gppd",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://datasets.wri.org/datasets/global-power-plant-database",
+      "citation": "Byers L et al. (2019) A Global Database of Power Plants. World Resources Institute, Washington, DC.",
+      "referenceUrls": [
+        "https://datasets.wri.org/datasets/global-power-plant-database",
+        "https://www.wri.org/research/global-database-power-plants"
+      ],
+      "manualDownload": false,
+      "notes": "CSV of ~35,000 power plants globally. Direct download."
+    }
+  ]
+}

@@ -60,7 +60,7 @@ cp .env.example .env
 pnpm install
 pnpm db:indexes   # creates MongoDB indexes
 
-pnpm dev          # starts api on :3001, web on :3000
+pnpm dev          # single process on :3000 — UI + API (/health, /v1/*)
 ```
 
 ### Data sources
