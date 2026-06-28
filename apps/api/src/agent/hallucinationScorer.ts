@@ -16,24 +16,14 @@ export function extractNumericClaims(text: string): string[] {
 /** Check if a single numeric claim is traceable to at least one evidence item. */
 export function isNumericClaimSupported(claim: string, evidence: EvidenceItem[]): boolean {
   const claimNum = parseFloat(claim)
-  const unit = claim.replace(/[\d.]+\s*/, '').trim().toLowerCase()
+  if (isNaN(claimNum)) return true
 
   for (const ev of evidence) {
-    const valStr = JSON.stringify(ev.value ?? {}).toLowerCase()
-    const descStr = ev.description.toLowerCase()
-    const unitStr = (ev.unit ?? '').toLowerCase()
+    const valStr = JSON.stringify(ev.value ?? {})
+    const descStr = ev.description
 
-    // Unit match helps narrow — skip if units are clearly incompatible
-    const unitCompatible =
-      !unit ||
-      unitStr.includes(unit) ||
-      descStr.includes(unit) ||
-      valStr.includes(unit)
-
-    if (!unitCompatible) continue
-
-    // Exact substring match
-    if (valStr.includes(String(claimNum)) || descStr.includes(claim.toLowerCase())) {
+    // Exact substring match (including "5" matching "5.0")
+    if (valStr.includes(String(claimNum)) || descStr.toLowerCase().includes(claim.toLowerCase())) {
       return true
     }
 

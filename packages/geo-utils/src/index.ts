@@ -99,7 +99,7 @@ export function nearestFeatureDistanceKm(
 /** Normalises a raw GeoJSON object — ensures winding order, removes Z coords. */
 export function normalizeGeoJson(geometry: Polygon | MultiPolygon): Polygon | MultiPolygon {
   const rewound = turf.rewind({ type: 'Feature', geometry, properties: {} }, { reverse: false })
-  return rewound.geometry as Polygon | MultiPolygon
+  return (rewound as unknown as { geometry: Polygon | MultiPolygon }).geometry
 }
 
 /** Returns { valid, reason } for a polygon. */
