@@ -7,8 +7,9 @@ services:
       repo: chetas1208/Solux
       branch: main
       deploy_on_push: true
-    dockerfile_path: ops/docker/Dockerfile.api
     source_dir: /
+    build_command: pnpm --filter @solux/api build
+    run_command: node_modules/.bin/tsx apps/api/src/server.ts
     http_port: 3001
     instance_size_slug: basic-xxs
     instance_count: 1
@@ -52,8 +53,9 @@ services:
       repo: chetas1208/Solux
       branch: main
       deploy_on_push: true
-    dockerfile_path: ops/docker/Dockerfile.web
     source_dir: /
+    build_command: pnpm --filter @solux/web build
+    run_command: node apps/web/.output/server/index.mjs
     http_port: 3000
     instance_size_slug: basic-xxs
     instance_count: 1
