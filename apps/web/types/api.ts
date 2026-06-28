@@ -73,6 +73,12 @@ export interface ProjectListSummary {
   candidateCount: number
   avgConfidence: number
   avgScore: number
+  scoreMin: number
+  scoreMax: number
+  avgSolar: number
+  avgGrid: number
+  primaryStates: string[]
+  topSiteLabel: string
   topDecision: string
   datasetVersion: string
   hasResults: boolean

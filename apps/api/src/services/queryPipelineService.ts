@@ -38,6 +38,7 @@ import {
 const REGION_ALIASES: Record<string, string[]> = {
   rajasthan: ['RAJ', 'Rajasthan'],
   gujarat: ['GUJ', 'Gujarat'],
+  karnataka: ['KA', 'Karnataka'],
   arizona: ['AZ', 'Arizona'],
   nevada: ['NV', 'Nevada'],
   california: ['CA', 'California'],
@@ -51,6 +52,12 @@ function regionTokens(spec: ProjectSpec, regionHint?: string): string[] {
   const tokens = new Set<string>()
   for (const [key, codes] of Object.entries(REGION_ALIASES)) {
     if (text.includes(key)) codes.forEach((c) => tokens.add(c))
+  }
+  // Explicit region codes in hint (e.g. "RAJ TX NV")
+  if (regionHint) {
+    for (const part of regionHint.toUpperCase().split(/[\s,]+/)) {
+      if (/^[A-Z]{2,3}$/.test(part)) tokens.add(part)
+    }
   }
   if (!tokens.size && spec.targetCountry === 'India') ['RAJ', 'GUJ'].forEach((c) => tokens.add(c))
   return [...tokens]

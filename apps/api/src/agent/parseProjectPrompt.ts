@@ -141,6 +141,9 @@ export async function parseProjectPrompt(
       'targetCapacityMW',
     ]
   }
+  if (!parsed['name'] || typeof parsed['name'] !== 'string') {
+    parsed['name'] = region.trim() || rawPrompt.slice(0, 80).trim() || 'Solar screening project'
+  }
 
   const specResult = ProjectSpecSchema.safeParse({
     ...parsed,
