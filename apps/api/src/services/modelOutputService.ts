@@ -46,11 +46,59 @@ async function fetchSpacesJson(key: string) {
   }
 }
 
+async function probeModelEndpointLive(): Promise<Record<string, unknown> | null> {
+  const base = (process.env['SOLUX_MODEL_ENDPOINT'] ?? env.SOLUX_MODEL_ENDPOINT)
+    .replace(/\/$/, '')
+    .replace(/\/docs$/, '')
+  if (!base) return null
+  try {
+    const auth = process.env['SOLUX_MODEL_ENDPOINT_AUTH'] ?? env.SOLUX_MODEL_ENDPOINT_AUTH
+    const headers: Record<string, string> = {}
+    if (auth) headers['Authorization'] = `Bearer ${auth}`
+    const [health, models] = await Promise.all([
+      fetch(`${base}/health`, { signal: AbortSignal.timeout(8000), headers }),
+      fetch(`${base}/v1/models`, { signal: AbortSignal.timeout(8000), headers }),
+    ])
+    const reachable = health.ok || models.ok
+    const supportedRoutes: string[] = []
+    if (health.ok) supportedRoutes.push('GET /health')
+    if (models.ok) supportedRoutes.push('GET /v1/models')
+    let supportedModels: string[] = []
+    if (models.ok) {
+      const json = (await models.json().catch(() => null)) as {
+        data?: Array<{ id: string }>
+        models?: Array<{ name: string }>
+      } | null
+      supportedModels = json?.data?.map((m) => m.id) ?? json?.models?.map((m) => m.name) ?? []
+    }
+    return {
+      endpointUrl: base,
+      checkedAt: new Date().toISOString(),
+      reachable,
+      supportedRoutes,
+      supportedModels,
+      errors: reachable ? [] : ['Health/models probe failed'],
+      warnings: [],
+    }
+  } catch (err) {
+    return {
+      endpointUrl: base,
+      checkedAt: new Date().toISOString(),
+      reachable: false,
+      supportedRoutes: [],
+      supportedModels: [],
+      errors: [String(err)],
+      warnings: ['Live probe failed'],
+    }
+  }
+}
+
 export async function getModelOutputStatus() {
   const manifest =
     (await readLocalManifest()) ??
     (await fetchSpacesJson(`${OUTPUT_PREFIX}/model_outputs/model_analysis_manifest.json`))
   const capabilities =
+    (await probeModelEndpointLive()) ??
     (await readLocalCapabilities()) ??
     (await fetchSpacesJson(`${OUTPUT_PREFIX}/model_outputs/endpoint_capabilities.json`))
 

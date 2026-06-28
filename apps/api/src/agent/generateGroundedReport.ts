@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import { GeminiClient } from './geminiClient.js'
+import { generateText, isLlmAvailable, llmUnavailableReason, parseJsonFromLlm } from './llmClient.js'
 import { runEvidenceGuard } from './evidenceGuard.js'
 import type {
   FatalFlawReport,
@@ -27,12 +27,10 @@ export async function generateGroundedReport(
   evidence: EvidenceItem[],
   projectId: string,
 ): Promise<{ report: FatalFlawReport; trace: AgentTrace }> {
-  if (!GeminiClient.isAvailable()) {
-    throw new Error('GEMINI_API_KEY not configured')
+  if (!isLlmAvailable()) {
+    throw new Error(`${llmUnavailableReason()} — cannot generate report`)
   }
 
-  const client = new GeminiClient()
-  const model = client.fastModel()
   const traceId = uuid()
   const startedAt = new Date().toISOString()
   const events: AgentTraceEvent[] = []
@@ -91,14 +89,14 @@ Output JSON (no prose outside JSON):
   const reqStart = Date.now()
 
   let raw: string
+  let modelUsed: string
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    })
-    raw = result.response.text()
+    const result = await generateText(prompt, { jsonMode: true, modelHint: 'fast' })
+    raw = result.text
+    modelUsed = `${result.provider}/${result.model}`
   } catch (err) {
     events.push({ timestamp: new Date().toISOString(), type: 'error', error: String(err) })
-    throw new Error(`Gemini report generation failed: ${err}`)
+    throw new Error(`Report generation failed: ${err}`)
   }
 
   events.push({
@@ -115,9 +113,9 @@ Output JSON (no prose outside JSON):
     risksAndMitigations: Array<{ risk: string; mitigation: string }>
   }
   try {
-    parsed = JSON.parse(raw) as typeof parsed
+    parsed = parseJsonFromLlm(raw) as typeof parsed
   } catch {
-    throw new Error('Gemini returned invalid JSON for report')
+    throw new Error('LLM returned invalid JSON for report')
   }
 
   // Evidence guard — check all text
@@ -178,7 +176,7 @@ Output JSON (no prose outside JSON):
     },
     hallucinationScore: guardResult.hallucinationScore,
     generatedAt: now,
-    modelUsed: client.fastModelName,
+    modelUsed,
   }
 
   const trace: AgentTrace = {
@@ -186,7 +184,7 @@ Output JSON (no prose outside JSON):
     projectId,
     siteId: site.id,
     runType: 'generate_report',
-    model: client.fastModelName,
+    model: modelUsed,
     startedAt,
     completedAt: now,
     status: 'completed',

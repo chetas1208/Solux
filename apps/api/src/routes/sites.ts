@@ -5,7 +5,7 @@ import { saveAgentTrace } from '../db/repositories/agentTraceRepo.js'
 import { saveReport, getReport } from '../db/repositories/reportsRepo.js'
 import { generateGroundedReport } from '../agent/generateGroundedReport.js'
 import { verifyReportClaims } from '../agent/verifyReportClaims.js'
-import { GeminiClient } from '../agent/geminiClient.js'
+import { isLlmAvailable, llmUnavailableReason } from '../agent/llmClient.js'
 import { MiniMaxClient } from '../minimax/minimaxClient.js'
 import { generateVoiceBriefing } from '../minimax/generateVoiceBriefing.js'
 
@@ -42,9 +42,9 @@ sitesRouter.get('/:id/report', async (c) => {
     return c.json({ data: { report: existingReport, cached: true } })
   }
 
-  if (!GeminiClient.isAvailable()) {
+  if (!isLlmAvailable()) {
     return c.json(
-      { error: 'Gemini not configured', detail: 'Set GEMINI_API_KEY to generate AI reports' },
+      { error: 'LLM not configured', detail: llmUnavailableReason() },
       503,
     )
   }

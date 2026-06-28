@@ -1,8 +1,9 @@
 import type { SiteWithScore } from '~/types/api'
 import type { GlobeCameraTarget } from '~/types/earth'
 
+/** Shared fly-to target so any panel can drive the 3D Earth camera. */
 export function useGlobeCamera() {
-  const flyToTarget = ref<GlobeCameraTarget | null>(null)
+  const flyToTarget = useState<GlobeCameraTarget | null>('solux-globe-fly-to', () => null)
 
   function flyToSite(site: SiteWithScore, height = 25_000) {
     const c = site.centroid?.coordinates

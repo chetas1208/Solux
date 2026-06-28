@@ -1,5 +1,6 @@
 import { MongoClient, type Db } from 'mongodb'
 import { dbConfig } from '@solux/config'
+import { setupSpecIndexes } from './indexes.js'
 
 let client: MongoClient | null = null
 let db: Db | null = null
@@ -11,7 +12,10 @@ export async function getDb(): Promise<Db> {
       'MONGODB_URI is not configured. Set it in .env to connect to MongoDB Atlas.',
     )
   }
-  client = new MongoClient(dbConfig.uri)
+  client = new MongoClient(dbConfig.uri, {
+    serverSelectionTimeoutMS: 30000,
+    socketTimeoutMS: 300000,
+  })
   await client.connect()
   db = client.db(dbConfig.dbName)
   return db
@@ -80,5 +84,6 @@ export async function setupIndexes(): Promise<void> {
     { key: { startedAt: -1 }, name: 'startedAt_desc' },
   ])
 
+  await setupSpecIndexes(database)
   console.log('MongoDB indexes set up successfully')
 }

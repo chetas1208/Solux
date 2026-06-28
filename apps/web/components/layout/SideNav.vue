@@ -1,8 +1,7 @@
 <script setup lang="ts">
 const links = [
-  { to: '/', label: 'Home' },
   { to: '/projects', label: 'Projects' },
-  { to: '/status', label: 'Readiness' },
+  { to: '/status', label: 'System readiness' },
   { to: '/diagnostics/maps', label: 'Map diagnostics' },
 ]
 </script>
@@ -21,8 +20,8 @@ const links = [
       </NuxtLink>
     </nav>
     <div class="mt-auto p-3 border-t border-surface-border">
-      <p class="text-[10px] text-zinc-600 leading-relaxed">
-        Evidence-backed fatal-flaw screening. Missing data lowers confidence.
+      <p class="text-[10px] text-zinc-700 leading-relaxed">
+        India · United States<br />Missing data lowers confidence.
       </p>
     </div>
   </aside>

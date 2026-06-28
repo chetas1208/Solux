@@ -8,21 +8,21 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "tsx src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.665.0",
     "@google/generative-ai": "^0.21.0",
-    "@turf/turf": "^7.2.0",
     "@hono/node-server": "^1.13.0",
     "@hono/zod-validator": "^0.4.0",
     "@solux/config": "workspace:*",
     "@solux/geo-utils": "workspace:*",
     "@solux/shared": "workspace:*",
-    "@aws-sdk/client-s3": "^3.665.0",
+    "@turf/turf": "^7.2.0",
     "hono": "^4.6.0",
     "mongodb": "^6.9.0",
     "tsx": "^4.16.0",
@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

@@ -9,8 +9,6 @@ function monorepoRoots(): string[] {
 
 /** Load root .env before embedded API reads process.env (Nitro cwd is apps/web in dev). */
 export function loadMonorepoEnv() {
-  if (process.env['MONGODB_URI']) return
-
   for (const rootDir of monorepoRoots()) {
     if (
       !existsSync(resolve(rootDir, 'pnpm-workspace.yaml')) &&
@@ -21,7 +19,7 @@ export function loadMonorepoEnv() {
     for (const file of ['.env', '.env.local'] as const) {
       const path = resolve(rootDir, file)
       if (existsSync(path)) {
-        loadEnv({ path, override: file === '.env.local' })
+        loadEnv({ path, override: true })
       }
     }
     return

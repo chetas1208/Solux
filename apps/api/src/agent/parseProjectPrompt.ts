@@ -1,9 +1,8 @@
 import { v4 as uuid } from 'uuid'
-import { GeminiClient } from './geminiClient.js'
 import { ProjectSpecSchema } from '@solux/shared'
 import type { ProjectSpec } from '@solux/shared'
 import type { AgentTrace, AgentTraceEvent } from './schemas.js'
-import { env } from '../config/env.js'
+import { generateText, isLlmAvailable, llmUnavailableReason, parseJsonFromLlm } from './llmClient.js'
 
 /** Known region → approximate [minLon, minLat, maxLon, maxLat] bounding boxes. */
 const REGION_BBOX: Record<string, [number, number, number, number]> = {
@@ -14,6 +13,7 @@ const REGION_BBOX: Record<string, [number, number, number, number]> = {
   'tamil nadu': [76.2, 8.0, 80.4, 13.6],
   maharashtra: [72.6, 15.6, 80.9, 22.0],
   nevada: [-120.0, 35.0, -114.0, 42.0],
+  'nevada desert': [-120.0, 35.0, -114.0, 42.0],
   california: [-124.4, 32.5, -114.1, 42.0],
   texas: [-106.6, 25.8, -93.5, 36.5],
   arizona: [-114.8, 31.3, -109.0, 37.0],
@@ -22,12 +22,11 @@ const REGION_BBOX: Record<string, [number, number, number, number]> = {
   usa: [-125.0, 24.0, -66.9, 49.4],
 }
 
-function inferBBox(region: string): [number, number, number, number] | undefined {
-  const key = region.toLowerCase().trim()
-  // Try exact match first, then partial match
-  if (REGION_BBOX[key]) return REGION_BBOX[key]
-  for (const [k, bbox] of Object.entries(REGION_BBOX)) {
-    if (key.includes(k) || k.includes(key)) return bbox
+function inferBBox(region: string, rawPrompt?: string): [number, number, number, number] | undefined {
+  const haystack = `${rawPrompt ?? ''} ${region}`.toLowerCase()
+  const entries = Object.entries(REGION_BBOX).sort((a, b) => b[0].length - a[0].length)
+  for (const [k, bbox] of entries) {
+    if (haystack.includes(k)) return bbox
   }
   return undefined
 }
@@ -39,7 +38,9 @@ RULES:
 - Never invent capacity, coordinates, or thresholds not mentioned
 - If the user mentions "Gujarat and Rajasthan", targetRegion = "Gujarat and Rajasthan"
 - For technology: "solar + storage" = solar_plus_storage; floating/reservoir/canal/lake = floating_pv; else solar_pv
-- For country: Gujarat/Rajasthan/Karnataka → India; Nevada/Texas/California → USA
+- For country: Gujarat/Rajasthan/Karnataka/Tamil Nadu/Maharashtra → India; Nevada/Texas/California/Arizona/New Mexico → USA
+- targetCountry: "USA" if only USA states mentioned; "India" if only India states mentioned; "India" if India+USA mixed (use first supported country); "Other" if ONLY unsupported countries
+- unsupportedCountries: list every country mentioned that is NOT India or United States — e.g. Brazil, Australia, China, EU countries, etc. Empty array if none.
 - missingFields: list any of [targetCapacityMW, targetRegion, technology] that you cannot determine
 - Do not include searchBBox — it is added server-side
 - Return ONLY valid JSON, no prose
@@ -53,6 +54,7 @@ JSON schema:
   "storageHours": number | null,
   "targetCountry": "USA" | "India" | "Other",
   "targetRegion": string,
+  "unsupportedCountries": string[],
   "preferredSiteTypes": ("land"|"reservoir"|"canal"|"lake"|"coastal_shallow")[],
   "excludedSiteTypes": ("land"|"reservoir"|"canal"|"lake"|"coastal_shallow")[],
   "maxSlopeAngle": number,
@@ -71,12 +73,10 @@ export async function parseProjectPrompt(
   rawPrompt: string,
   projectId: string,
 ): Promise<{ spec: ProjectSpec; trace: AgentTrace }> {
-  if (!GeminiClient.isAvailable()) {
-    throw new Error('GEMINI_API_KEY not configured — cannot parse project prompt')
+  if (!isLlmAvailable()) {
+    throw new Error(`${llmUnavailableReason()} — cannot parse project prompt`)
   }
 
-  const client = new GeminiClient()
-  const model = client.fastModel()
   const traceId = uuid()
   const startedAt = new Date().toISOString()
   const events: AgentTraceEvent[] = []
@@ -87,48 +87,67 @@ export async function parseProjectPrompt(
     timestamp: new Date().toISOString(),
     type: 'model_request',
     toolName: 'parse_project_prompt',
-    input: { rawPrompt, model: client.fastModelName },
+    input: { rawPrompt },
   })
 
   const reqStart = Date.now()
 
   let raw: string
+  let modelUsed: string
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    const result = await generateText(prompt, { jsonMode: true, modelHint: 'fast' })
+    raw = result.text
+    modelUsed = `${result.provider}/${result.model}`
+    events.push({
+      timestamp: new Date().toISOString(),
+      type: 'model_response',
+      output: { text: raw, provider: result.provider },
+      durationMs: Date.now() - reqStart,
     })
-    raw = result.response.text()
   } catch (err) {
     events.push({ timestamp: new Date().toISOString(), type: 'error', error: String(err) })
-    const trace = buildTrace(traceId, projectId, startedAt, events, client.fastModelName, 'failed', String(err))
-    throw Object.assign(new Error(`Gemini parse failed: ${err}`), { trace })
+    const trace = buildTrace(traceId, projectId, startedAt, events, 'none', 'failed', String(err))
+    throw Object.assign(new Error(`LLM parse failed: ${err}`), { trace })
   }
-
-  events.push({
-    timestamp: new Date().toISOString(),
-    type: 'model_response',
-    output: raw,
-    durationMs: Date.now() - reqStart,
-  })
 
   let parsed: Record<string, unknown>
   try {
-    parsed = JSON.parse(raw) as Record<string, unknown>
+    parsed = parseJsonFromLlm(raw)
   } catch {
-    const trace = buildTrace(traceId, projectId, startedAt, events, client.fastModelName, 'failed', 'Invalid JSON from Gemini')
-    throw Object.assign(new Error('Gemini returned invalid JSON'), { trace })
+    const trace = buildTrace(traceId, projectId, startedAt, events, modelUsed, 'failed', 'Invalid JSON from LLM')
+    throw Object.assign(new Error('LLM returned invalid JSON'), { trace })
   }
 
-  // Infer bbox server-side — never trust Gemini to invent coordinates
   const region = (parsed['targetRegion'] as string | undefined) ?? ''
-  const inferredBBox = inferBBox(region)
+  const inferredBBox = inferBBox(region, rawPrompt)
+
+  for (const key of ['storageCapacityMW', 'storageHours', 'searchBBox', 'searchPolygon'] as const) {
+    if (parsed[key] === null) delete parsed[key]
+  }
+
+  // Encode unsupported countries as additionalConstraints so they survive schema parsing
+  const unsupportedCountries = (parsed['unsupportedCountries'] as string[] | undefined) ?? []
+  delete parsed['unsupportedCountries']
+  if (unsupportedCountries.length) {
+    parsed['additionalConstraints'] = [
+      ...((parsed['additionalConstraints'] as string[]) ?? []),
+      ...unsupportedCountries.map((c: string) => `unsupported_region:${c}`),
+    ]
+  }
+  if (parsed['targetCapacityMW'] == null) {
+    parsed['targetCapacityMW'] = 50
+    parsed['missingFields'] = [
+      ...((parsed['missingFields'] as string[]) ?? []),
+      'targetCapacityMW',
+    ]
+  }
 
   const specResult = ProjectSpecSchema.safeParse({
     ...parsed,
     id: uuid(),
     briefId: projectId,
     parsedAt: new Date().toISOString(),
-    geminiModel: client.fastModelName,
+    geminiModel: modelUsed,
     preferredSiteTypes: parsed['preferredSiteTypes'] ?? ['land'],
     excludedSiteTypes: parsed['excludedSiteTypes'] ?? [],
     additionalConstraints: [
@@ -148,12 +167,13 @@ export async function parseProjectPrompt(
 
   if (!specResult.success) {
     const msg = specResult.error.message
-    const trace = buildTrace(traceId, projectId, startedAt, events, client.fastModelName, 'failed', msg)
+    const trace = buildTrace(traceId, projectId, startedAt, events, modelUsed, 'failed', msg)
     throw Object.assign(new Error(`Schema validation failed: ${msg}`), { trace })
   }
 
-  const trace = buildTrace(traceId, projectId, startedAt, events, client.fastModelName, 'completed')
-  return { spec: specResult.data, trace }
+  const spec = specResult.data
+  const trace = buildTrace(traceId, projectId, startedAt, events, modelUsed, 'completed')
+  return { spec, trace }
 }
 
 function buildTrace(

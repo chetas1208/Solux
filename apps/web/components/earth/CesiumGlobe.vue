@@ -22,6 +22,14 @@ const layerState = ref<GlobeLayerState | null>(null)
 let viewer: import('cesium').Viewer | null = null
 let CesiumMod: Awaited<ReturnType<typeof loadCesium>> | null = null
 let clickHandler: import('cesium').ScreenSpaceEventHandler | null = null
+let resizeObserver: ResizeObserver | null = null
+
+function resizeViewer() {
+  if (viewer && !viewer.isDestroyed()) {
+    viewer.resize()
+    viewer.scene.requestRender()
+  }
+}
 
 const showCandidates = computed(
   () => props.layers.find((l) => l.id === 'candidates')?.enabled !== false,
@@ -93,6 +101,11 @@ async function initGlobe() {
       google3dEnabled: config.public.google3dTilesEnabled === true,
     })
 
+    viewer.scene.screenSpaceCameraController.enableRotate = true
+    viewer.scene.screenSpaceCameraController.enableZoom = true
+    viewer.scene.screenSpaceCameraController.enableTilt = true
+    viewer.scene.screenSpaceCameraController.enableTranslate = true
+
     clickHandler = new CesiumMod.ScreenSpaceEventHandler(viewer.scene.canvas)
     clickHandler.setInputAction((movement: { position: import('cesium').Cartesian2 }) => {
       if (!viewer || !CesiumMod) return
@@ -100,6 +113,12 @@ async function initGlobe() {
       const siteId = picked?.id?.properties?.siteId?.getValue?.()
       if (siteId) emit('select', String(siteId))
     }, CesiumMod.ScreenSpaceEventType.LEFT_CLICK)
+
+    if (container.value) {
+      resizeObserver = new ResizeObserver(() => resizeViewer())
+      resizeObserver.observe(container.value)
+    }
+    resizeViewer()
 
     await syncSites()
     scene.value = {
@@ -143,19 +162,26 @@ async function syncSites() {
       entity.polygon.material = new CesiumMod.ColorMaterialProperty(color)
       entity.polygon.outline = new CesiumMod.ConstantProperty(true)
       entity.polygon.outlineColor = new CesiumMod.ConstantProperty(outline)
-      entity.polygon.outlineWidth = new CesiumMod.ConstantProperty(2)
-    }
-    if (siteId === props.selectedId) {
-      entity.polygon!.outlineWidth = new CesiumMod.ConstantProperty(4)
+      entity.polygon.outlineWidth = new CesiumMod.ConstantProperty(siteId === props.selectedId ? 4 : 2)
+    } else if (entity.position) {
+      entity.point = new CesiumMod.PointGraphics({
+        pixelSize: siteId === props.selectedId ? 14 : 10,
+        color: outline,
+        outlineColor: CesiumMod.Color.WHITE.withAlpha(0.8),
+        outlineWidth: 2,
+        heightReference: CesiumMod.HeightReference.CLAMP_TO_GROUND,
+      })
     }
   }
 
   viewer.dataSources.add(ds)
+  resizeViewer()
   scene.value.sitesRendered = visibleSites.value.length
   scene.value.sitesTotal = props.sites.length
 }
 
 onUnmounted(() => {
+  resizeObserver?.disconnect()
   clickHandler?.destroy()
   viewer?.destroy()
   viewer = null
@@ -177,6 +203,12 @@ onUnmounted(() => {
       :layer-state="layerState"
     />
     <EarthGlobeLegend class="absolute bottom-3 left-3 z-10" />
+    <p
+      v-if="scene.ready && !sites.length"
+      class="absolute bottom-14 left-3 z-10 text-[10px] text-zinc-500 pointer-events-none"
+    >
+      Drag to rotate · scroll to zoom · ask a question to load sites
+    </p>
     <div
       v-if="!sites.length"
       class="absolute inset-0 flex items-center justify-center p-6 pointer-events-none z-10"

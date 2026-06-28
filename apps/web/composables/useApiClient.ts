@@ -13,6 +13,7 @@ import type {
   FatalFlawReport,
 } from '~/types/api'
 import type { ApiErrorBody } from '~/types/api'
+import { formatApiError } from '~/utils/formatApiError'
 
 export class ApiClientError extends Error {
   readonly status: number
@@ -47,8 +48,9 @@ export function useApiClient() {
     }
 
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({ error: res.statusText }))) as ApiErrorBody
-      throw new ApiClientError(body.error ?? `HTTP ${res.status}`, res.status, body.detail, res.status === 0)
+      const body = await res.json().catch(() => ({ error: res.statusText }))
+      const { message, detail } = formatApiError(body, `HTTP ${res.status}`)
+      throw new ApiClientError(message, res.status, detail, res.status === 0)
     }
 
     const json = (await res.json()) as { data: T }
@@ -66,8 +68,9 @@ export function useApiClient() {
       throw new ApiClientError('Backend unreachable', 0, undefined, true)
     }
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({ error: res.statusText }))) as ApiErrorBody
-      throw new ApiClientError(body.error ?? `HTTP ${res.status}`, res.status, body.detail, false)
+      const body = await res.json().catch(() => ({ error: res.statusText }))
+      const { message, detail } = formatApiError(body, `HTTP ${res.status}`)
+      throw new ApiClientError(message, res.status, detail, false)
     }
     return (await res.json()) as T
   }
@@ -123,6 +126,12 @@ export function useApiClient() {
 
     getProjectModelRerank: (id: string) =>
       request<{ available: boolean; sites: unknown[]; message?: string }>(`/v1/projects/${id}/model-rerank`),
+
+    submitProjectQuery: (id: string, query: string) =>
+      request<import('~/composables/useProjectQuery').ProjectQueryResult>(`/v1/projects/${id}/query`, {
+        method: 'POST',
+        body: JSON.stringify({ prompt: query, limit: 10 }),
+      }),
 
     submitProjectFeedback: (id: string, body: Record<string, unknown>) =>
       request<{ recorded: boolean; message: string }>(`/v1/projects/${id}/feedback`, {

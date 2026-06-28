@@ -29,9 +29,12 @@ export async function listProjectBriefs(): Promise<ProjectBrief[]> {
 
 export async function saveProjectSpec(spec: ProjectSpec): Promise<void> {
   const db = await getDb()
-  await db
-    .collection('parsed_project_specs')
-    .replaceOne({ briefId: spec.briefId }, { ...spec, _id: spec.id } as never, { upsert: true })
+  const { id, ...fields } = spec
+  await db.collection('parsed_project_specs').updateOne(
+    { briefId: spec.briefId },
+    { $set: fields, $setOnInsert: { _id: id } },
+    { upsert: true },
+  )
 }
 
 export async function getProjectSpec(briefId: string): Promise<ProjectSpec | null> {

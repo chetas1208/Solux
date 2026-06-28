@@ -1,8 +1,13 @@
 export interface LearningLoopStatus {
   active: boolean
+  activePolicyVersion?: string
   scoringPolicyVersion: string
   queryRunsCount: number
   feedbackEventsCount: number
+  queryRuns?: Array<Record<string, unknown>>
+  feedbackEvents?: Array<Record<string, unknown>>
+  metrics?: Record<string, number>
+  notes?: string[]
   immutableNote: string
   message: string
 }

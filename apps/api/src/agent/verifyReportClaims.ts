@@ -1,11 +1,11 @@
 import { GeminiClient } from './geminiClient.js'
+import { generateText, isLlmAvailable, parseJsonFromLlm } from './llmClient.js'
 import type { FatalFlawReport, EvidenceItem, ClaimVerificationResult } from './schemas.js'
 import { scoreHallucination } from './hallucinationScorer.js'
 
 /**
  * Optional second-pass verification using the report model.
- * Only runs if GEMINI_REPORT_MODEL is configured and differs from the fast model.
- * Falls back to deterministic hallucinationScorer if Gemini unavailable.
+ * Gemini report model first; MiniMax fallback; deterministic scorer last.
  */
 export async function verifyReportClaims(
   report: FatalFlawReport,
@@ -18,20 +18,16 @@ export async function verifyReportClaims(
     ...report.risksAndMitigations.map((r) => `${r.risk} ${r.mitigation}`),
   ].join(' ')
 
-  // Always run deterministic check first
   const deterministicResult = scoreHallucination(allText, evidence)
 
-  // Skip Gemini verification if not configured or same model as fast
-  if (
-    !GeminiClient.isAvailable() ||
-    !process.env['GEMINI_REPORT_MODEL'] ||
-    process.env['GEMINI_REPORT_MODEL'] === process.env['GEMINI_FAST_MODEL']
-  ) {
+  const canUseGeminiReport =
+    GeminiClient.isAvailable() &&
+    !!process.env['GEMINI_REPORT_MODEL'] &&
+    process.env['GEMINI_REPORT_MODEL'] !== process.env['GEMINI_FAST_MODEL']
+
+  if (!canUseGeminiReport && !isLlmAvailable()) {
     return deterministicResult
   }
-
-  const client = new GeminiClient()
-  const model = client.reportModel()
 
   const evidenceContext = evidence
     .map((e) => `[${e.source}] ${e.description}: ${JSON.stringify(e.value)} ${e.unit ?? ''}`)
@@ -57,11 +53,11 @@ Return JSON:
 }`
 
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    const result = await generateText(prompt, {
+      jsonMode: true,
+      modelHint: canUseGeminiReport ? 'report' : 'fast',
     })
-    const raw = result.response.text()
-    const parsed = JSON.parse(raw) as {
+    const parsed = parseJsonFromLlm(result.text) as {
       unsupportedClaims: string[]
       supportedClaims: string[]
       verdict: string
@@ -92,7 +88,6 @@ Return JSON:
       passed: parsed.verdict === 'pass',
     }
   } catch {
-    // Fall back to deterministic on any Gemini error
     return deterministicResult
   }
 }

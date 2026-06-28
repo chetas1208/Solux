@@ -6,7 +6,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row min-h-0 flex-1">
+  <div class="flex flex-col lg:flex-row min-h-0 flex-1 h-full">
     <div
       v-if="$slots.left"
       class="shrink-0 border-b lg:border-b-0 lg:border-r border-surface-border overflow-auto"

@@ -12,13 +12,22 @@ import { getSitesByProject, getScoresByProject } from '../db/repositories/sites.
 import { getEvidenceForProject } from '../db/repositories/evidence.js'
 import { saveAgentTrace } from '../db/repositories/agentTraceRepo.js'
 import { parseProjectPrompt } from '../agent/parseProjectPrompt.js'
-import { GeminiClient } from '../agent/geminiClient.js'
+import { isLlmAvailable, llmUnavailableReason } from '../agent/llmClient.js'
 import { runScreeningJob } from '../jobs/screeningJob.js'
-import { v4 as uuid } from 'uuid'
 import { getModelRerankForProject } from '../services/modelOutputService.js'
-import { logQueryRun, logFeedback } from '../services/learningLoopService.js'
+import { logFeedback } from '../services/learningLoopService.js'
+import { runQueryPipeline } from '../services/queryPipelineService.js'
 
 export const projectsRouter = new Hono()
+
+const queryBodySchema = z
+  .object({
+    prompt: z.string().min(3).max(4000).optional(),
+    query: z.string().min(3).max(4000).optional(),
+    regionHint: z.string().max(500).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+  })
+  .refine((d) => Boolean(d.prompt || d.query), { message: 'prompt or query required' })
 
 projectsRouter.post(
   '/',
@@ -48,9 +57,9 @@ projectsRouter.post('/:id/parse-prompt', async (c) => {
   const brief = await getProjectBrief(id)
   if (!brief) return c.json({ error: 'Project not found' }, 404)
 
-  if (!GeminiClient.isAvailable()) {
+  if (!isLlmAvailable()) {
     return c.json(
-      { error: 'Gemini not configured', detail: 'Set GEMINI_API_KEY in .env' },
+      { error: 'LLM not configured', detail: llmUnavailableReason() },
       503,
     )
   }
@@ -124,40 +133,41 @@ projectsRouter.get('/:id/model-rerank', async (c) => {
 
 projectsRouter.post(
   '/:id/query',
-  zValidator('json', z.object({ query: z.string().min(3).max(4000) })),
+  zValidator('json', queryBodySchema),
   async (c) => {
     const id = c.req.param('id')
-    const { query } = c.req.valid('json')
-    const spec = await getProjectSpec(id)
-    if (!spec) {
-      return c.json({ error: 'Project spec not found', detail: 'Parse prompt first' }, 400)
+    const body = c.req.valid('json')
+    const userPrompt = body.prompt ?? body.query!
+    const brief = await getProjectBrief(id)
+    if (!brief) return c.json({ error: 'Project not found' }, 404)
+
+    const existingSpec = await getProjectSpec(id)
+
+    try {
+      const result = await runQueryPipeline({
+        projectId: id,
+        userPrompt,
+        regionHint: body.regionHint,
+        limit: body.limit,
+        existingSpec: existingSpec ?? null,
+      })
+
+      return c.json({ data: result })
+    } catch (err) {
+      const msg = String(err)
+      if (msg.includes('UNSUPPORTED_REGION')) {
+        const countries = msg.replace('Error: UNSUPPORTED_REGION:', '').split(',').map((c) => c.trim())
+        return c.json(
+          {
+            error: 'UNSUPPORTED_REGION',
+            detail: `Solux currently supports solar screening in India and the United States. Unsupported: ${countries.join(', ')}`,
+            unsupportedCountries: countries,
+          },
+          422,
+        )
+      }
+      return c.json({ error: 'Query pipeline failed', detail: String(err) }, 500)
     }
-    const sites = await getSitesByProject(id)
-    const scores = await getScoresByProject(id)
-    const rerank = await getModelRerankForProject(id)
-    const queryId = uuid()
-    await logQueryRun({
-      queryId,
-      projectId: id,
-      userPrompt: query,
-      parsedProjectSpec: spec,
-      retrievedCandidateIds: sites.map((s) => s.id),
-      deterministicScores: scores,
-      modelRerankAvailable: rerank.available,
-      finalRankedIds: rerank.available
-        ? (rerank.sites as Array<{ candidateId: string }>).map((s) => s.candidateId)
-        : sites.map((s) => s.id),
-    })
-    return c.json({
-      data: {
-        queryId,
-        siteCount: sites.length,
-        modelRerankAvailable: rerank.available,
-        message: rerank.available
-          ? 'Query logged with model rerank'
-          : 'Model reranking unavailable; deterministic evidence scoring active.',
-      },
-    })
   },
 )
 

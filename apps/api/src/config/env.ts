@@ -21,6 +21,7 @@ const EnvSchema = z.object({
 
   MINIMAX_API_KEY: z.string().default(''),
   MINIMAX_GROUP_ID: z.string().default(''),
+  MINIMAX_TEXT_MODEL: z.string().default('MiniMax-M2'),
 
   // Solar data
   NREL_API_KEY: z.string().default(''),
